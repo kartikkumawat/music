@@ -33,6 +33,7 @@ music-streaming-app/
 │   │   │   ├── SongCard.jsx
 │   │   │   ├── SongList.jsx
 │   │   │   └── SearchBar.jsx
+
 │   │   ├── playlist/
 │   │   │   ├── PlaylistCard.jsx
 │   │   │   ├── PlaylistCreator.jsx
