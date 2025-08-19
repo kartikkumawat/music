@@ -1,0 +1,20 @@
+{
+  "name": "MusicStream - Your Music, Your Way",
+  "short_name": "MusicStream",
+  "description": "Stream your favorite music with MusicStream - The ultimate music streaming platform",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ],
+  "categories": ["music", "entertainment"],
+  "lang": "en",
+  "dir": "ltr"
+}

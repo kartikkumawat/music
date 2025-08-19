@@ -3,84 +3,88 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { MusicProvider } from './contexts/MusicContext';
 import { PlaylistProvider } from './contexts/PlaylistContext';
-import Header from './components/common/Header';
-import Footer from './components/common/Footer';
-import AudioPlayer from './components/audio/AudioPlayer';
 import Home from './pages/Home';
 import Search from './pages/Search';
 import Playlists from './pages/Playlists';
+import PlaylistDetail from './components/playlist/PlaylistDetail';
 import AdminPanel from './pages/AdminPanel';
 import AdminLogin from './components/admin/AdminLogin';
-import Loading from './components/common/Loading';
+import AudioPlayer from './components/audio/AudioPlayer';
+import Header from './components/common/Header';
+import Footer from './components/common/Footer';
+import SongDetail from './components/music/SongDetail';
 import './styles/globals.css';
 
-// Protected Route Component
-const ProtectedRoute = ({ children, adminOnly = false }) => {
-  const { user, isAdmin, loading } = useAuth();
-  
-  if (loading) return <Loading />;
-  
-  if (adminOnly) {
-    if (!user || !isAdmin) {
-      return <AdminLogin />;
-    }
-  }
-  
-  return children;
+const HiddenAdminRoute = () => {
+  const { isAdmin } = useAuth();
+  return isAdmin ? <AdminPanel /> : <AdminLogin />;
 };
 
-// App Layout Component
-const AppLayout = ({ children }) => (
-  <div className="min-h-screen bg-gradient-to-br from-dark-300 via-dark-200 to-dark-100 text-white">
-    <Header />
-    <main className="pb-24">
-      {children}
-    </main>
-    <AudioPlayer />
-    <Footer />
-  </div>
+const MainLayout = ({ children }) => (
+  <PlaylistProvider>
+    <div className="min-h-screen bg-dark-300 flex flex-col">
+      <Header />
+      <main className="flex-1 pb-24">
+        {children}
+      </main>
+      <Footer />
+      <AudioPlayer />
+    </div>
+  </PlaylistProvider>
 );
+
+const AppRoutes = () => {
+  return (
+    <Routes>
+      {/* Public Routes */}
+      <Route path="/" element={
+        <MainLayout>
+          <Home />
+        </MainLayout>
+      } />
+
+      <Route path="/search" element={
+        <MainLayout>
+          <Search />
+        </MainLayout>
+      } />
+
+      <Route path="/playlists" element={
+        <MainLayout>
+          <Playlists />
+        </MainLayout>
+      } />
+
+      {/* Playlist Detail Route */}
+      <Route path="/playlist/:playlistId" element={
+        <MainLayout>
+          <PlaylistDetail />
+        </MainLayout>
+      } />
+      <Route path="/song/:songId" element={
+        <MainLayout>
+        <SongDetail />
+        </MainLayout>
+        } />
+
+      <Route path="/music-admin" element={<HiddenAdminRoute />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+};
 
 function App() {
   return (
     <AuthProvider>
       <MusicProvider>
-        <PlaylistProvider>
-          <Router>
-            <Routes>
-              {/* Public Routes */}
-              <Route path="/" element={
-                <AppLayout>
-                  <Home />
-                </AppLayout>
-              } />
-              
-              <Route path="/search" element={
-                <AppLayout>
-                  <Search />
-                </AppLayout>
-              } />
-              
-              <Route path="/playlists" element={
-                <AppLayout>
-                  <Playlists />
-                </AppLayout>
-              } />
-              
-              {/* Admin Routes */}
-              <Route path="/admin" element={
-                <ProtectedRoute adminOnly>
-                  <AdminPanel />
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/admin/login" element={<AdminLogin />} />
-              
-              {/* Fallback Route */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </Router>
-        </PlaylistProvider>
+        <Router
+          future={{
+            v7_startTransition: true,
+            v7_relativeSplatPath: true
+          }}
+        >
+          <AppRoutes />
+        </Router>
       </MusicProvider>
     </AuthProvider>
   );

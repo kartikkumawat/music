@@ -1,38 +1,46 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../../services/firebase';
-import { collection, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
-import { Search, Edit, Trash2, Play, Pause, Music, Filter } from 'lucide-react';
+import { songsAPI } from '../../services/api';
+import {
+  Search,
+  Edit,
+  Trash2,
+  Play,
+  Pause,
+  MoreHorizontal,
+  Filter,
+  Download,
+  Eye,
+  Calendar,
+  Music
+} from 'lucide-react';
+import { useMusic } from '../../hooks/useMusic';
+import { formatTime, formatPlayCount, getTimeAgo } from '../../utils/helpers';
+import { GENRES } from '../../utils/constants';
 
 const SongManager = () => {
+  const { currentSong, isPlaying, playSong, pauseSong } = useMusic();
   const [songs, setSongs] = useState([]);
   const [filteredSongs, setFilteredSongs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('');
-  const [editingSong, setEditingSong] = useState(null);
-  const [genres, setGenres] = useState([]);
+  const [sortBy, setSortBy] = useState('newest');
+  const [selectedSongs, setSelectedSongs] = useState([]);
+  const [showDeleteModal, setShowDeleteModal] = useState(null);
 
   useEffect(() => {
     fetchSongs();
   }, []);
 
   useEffect(() => {
-    filterSongs();
-  }, [songs, searchQuery, selectedGenre]);
+    filterAndSortSongs();
+  }, [songs, searchQuery, selectedGenre, sortBy]);
 
   const fetchSongs = async () => {
     try {
-      const songsSnapshot = await getDocs(collection(db, 'songs'));
-      const songsData = songsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      
+      setLoading(true);
+      const songsData = await songsAPI.getAll();
       setSongs(songsData);
-      
-      // Extract unique genres
-      const uniqueGenres = [...new Set(songsData.map(song => song.genre).filter(Boolean))];
-      setGenres(uniqueGenres);
     } catch (error) {
       console.error('Error fetching songs:', error);
     } finally {
@@ -40,9 +48,10 @@ const SongManager = () => {
     }
   };
 
-  const filterSongs = () => {
-    let filtered = songs;
+  const filterAndSortSongs = () => {
+    let filtered = [...songs];
 
+    // Filter by search query
     if (searchQuery) {
       filtered = filtered.filter(song =>
         song.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -51,302 +60,343 @@ const SongManager = () => {
       );
     }
 
+    // Filter by genre
     if (selectedGenre) {
       filtered = filtered.filter(song => song.genre === selectedGenre);
     }
 
+    // Sort songs
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'newest':
+          return new Date(b.createdAt?.toDate() || 0) - new Date(a.createdAt?.toDate() || 0);
+        case 'oldest':
+          return new Date(a.createdAt?.toDate() || 0) - new Date(b.createdAt?.toDate() || 0);
+        case 'most-played':
+          return (b.playCount || 0) - (a.playCount || 0);
+        case 'least-played':
+          return (a.playCount || 0) - (b.playCount || 0);
+        case 'title-asc':
+          return a.title.localeCompare(b.title);
+        case 'title-desc':
+          return b.title.localeCompare(a.title);
+        case 'artist-asc':
+          return a.artist.localeCompare(b.artist);
+        case 'artist-desc':
+          return b.artist.localeCompare(a.artist);
+        default:
+          return 0;
+      }
+    });
+
     setFilteredSongs(filtered);
   };
 
-  const handleDeleteSong = async (songId, songTitle) => {
-    if (window.confirm(`Are you sure you want to delete "${songTitle}"?`)) {
+  const handleDeleteSong = async (songId) => {
+    try {
+      await songsAPI.delete(songId);
+      await fetchSongs();
+      setShowDeleteModal(null);
+    } catch (error) {
+      console.error('Error deleting song:', error);
+      alert('Failed to delete song. Please try again.');
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedSongs.length === 0) return;
+
+    if (window.confirm(`Are you sure you want to delete ${selectedSongs.length} songs?`)) {
       try {
-        await deleteDoc(doc(db, 'songs', songId));
-        setSongs(songs.filter(song => song.id !== songId));
-        alert('Song deleted successfully');
+        await Promise.all(selectedSongs.map(songId => songsAPI.delete(songId)));
+        await fetchSongs();
+        setSelectedSongs([]);
       } catch (error) {
-        console.error('Error deleting song:', error);
-        alert('Failed to delete song');
+        console.error('Error deleting songs:', error);
+        alert('Failed to delete some songs. Please try again.');
       }
     }
   };
 
-  const handleEditSong = async (songId, updatedData) => {
-    try {
-      const songRef = doc(db, 'songs', songId);
-      await updateDoc(songRef, updatedData);
-      
-      setSongs(songs.map(song => 
-        song.id === songId 
-          ? { ...song, ...updatedData }
-          : song
-      ));
-      
-      setEditingSong(null);
-      alert('Song updated successfully');
-    } catch (error) {
-      console.error('Error updating song:', error);
-      alert('Failed to update song');
-    }
+  const toggleSongSelection = (songId) => {
+    setSelectedSongs(prev =>
+      prev.includes(songId)
+        ? prev.filter(id => id !== songId)
+        : [...prev, songId]
+    );
   };
 
-  const formatDate = (timestamp) => {
-    if (!timestamp) return 'Unknown';
-    return new Date(timestamp.seconds * 1000).toLocaleDateString();
-  };
-
-  const formatDuration = (duration) => {
-    if (!duration) return 'Unknown';
-    const minutes = Math.floor(duration / 60);
-    const seconds = Math.floor(duration % 60);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  const toggleSelectAll = () => {
+    setSelectedSongs(
+      selectedSongs.length === filteredSongs.length
+        ? []
+        : filteredSongs.map(song => song.id)
+    );
   };
 
   if (loading) {
     return (
-      <div className="bg-dark-100 rounded-lg p-6">
-        <div className="animate-spin-slow w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full mx-auto"></div>
+      <div className="flex items-center justify-center py-20">
+        <div className="text-center">
+          <div className="animate-spin-slow w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading songs...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-dark-100 rounded-lg">
+    <div className="p-6">
       {/* Header */}
-      <div className="p-6 border-b border-gray-700">
-        <h2 className="text-2xl font-bold text-white mb-4">Song Management</h2>
-        
-        {/* Search and Filters */}
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="relative flex-1">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-white mb-2">Song Manager</h1>
+          <p className="text-gray-400">{filteredSongs.length} of {songs.length} songs</p>
+        </div>
+
+        {selectedSongs.length > 0 && (
+          <div className="flex items-center space-x-4">
+            <span className="text-gray-400">{selectedSongs.length} selected</span>
+            <button
+              onClick={handleBulkDelete}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center space-x-2"
+            >
+              <Trash2 size={16} />
+              <span>Delete Selected</span>
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Filters */}
+      <div className="bg-dark-100 rounded-xl p-6 mb-8 border border-gray-700">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Search */}
+          <div className="relative">
             <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
               type="text"
+              placeholder="Search songs..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search songs, artists, albums..."
-              className="w-full pl-10 pr-4 py-2 bg-dark-200 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-full pl-10 pr-4 py-2 bg-dark-200 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-primary-500"
             />
           </div>
-          
-          <div className="flex items-center space-x-2">
-            <Filter size={18} className="text-gray-400" />
-            <select
-              value={selectedGenre}
-              onChange={(e) => setSelectedGenre(e.target.value)}
-              className="bg-dark-200 border border-gray-600 rounded-lg text-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-            >
-              <option value="">All Genres</option>
-              {genres.map(genre => (
-                <option key={genre} value={genre}>{genre}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-        
-        <div className="mt-4 text-gray-400">
-          Showing {filteredSongs.length} of {songs.length} songs
+
+          {/* Genre Filter */}
+          <select
+            value={selectedGenre}
+            onChange={(e) => setSelectedGenre(e.target.value)}
+            className="px-4 py-2 bg-dark-200 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="">All Genres</option>
+            {GENRES.map(genre => (
+              <option key={genre} value={genre}>{genre}</option>
+            ))}
+          </select>
+
+          {/* Sort */}
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="px-4 py-2 bg-dark-200 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+            <option value="most-played">Most Played</option>
+            <option value="least-played">Least Played</option>
+            <option value="title-asc">Title A-Z</option>
+            <option value="title-desc">Title Z-A</option>
+            <option value="artist-asc">Artist A-Z</option>
+            <option value="artist-desc">Artist Z-A</option>
+          </select>
+
+          {/* Clear Filters */}
+          <button
+            onClick={() => {
+              setSearchQuery('');
+              setSelectedGenre('');
+              setSortBy('newest');
+            }}
+            className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors"
+          >
+            Clear Filters
+          </button>
         </div>
       </div>
 
       {/* Songs Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-dark-200">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Song
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Artist
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Album
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Genre
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Duration
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Plays
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Added
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-700">
-            {filteredSongs.map((song) => (
-              <tr key={song.id} className="hover:bg-dark-200 transition-colors">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
+      <div className="bg-dark-100 rounded-xl border border-gray-700 overflow-hidden">
+        {/* Table Header */}
+        <div className="bg-dark-200 border-b border-gray-700 p-4">
+          <div className="grid grid-cols-12 gap-4 items-center text-sm font-medium text-gray-400">
+            <div className="col-span-1">
+              <input
+                type="checkbox"
+                checked={selectedSongs.length === filteredSongs.length && filteredSongs.length > 0}
+                onChange={toggleSelectAll}
+                className="w-4 h-4 text-primary-500 bg-dark-200 border-gray-600 rounded focus:ring-primary-500"
+              />
+            </div>
+            <div className="col-span-1 text-center">#</div>
+            <div className="col-span-4">Song</div>
+            <div className="col-span-2">Album</div>
+            <div className="col-span-1">Plays</div>
+            <div className="col-span-1">Duration</div>
+            <div className="col-span-1">Added</div>
+            <div className="col-span-1">Actions</div>
+          </div>
+        </div>
+
+        {/* Table Body */}
+        <div className="divide-y divide-gray-700">
+          {filteredSongs.map((song, index) => {
+            const isCurrentSong = currentSong?.id === song.id;
+            const isSelected = selectedSongs.includes(song.id);
+
+            return (
+              <div
+                key={song.id}
+                className={`grid grid-cols-12 gap-4 items-center p-4 hover:bg-dark-200 transition-colors ${
+                  isSelected ? 'bg-primary-500/10' : ''
+                }`}
+              >
+                {/* Checkbox */}
+                <div className="col-span-1">
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggleSongSelection(song.id)}
+                    className="w-4 h-4 text-primary-500 bg-dark-200 border-gray-600 rounded focus:ring-primary-500"
+                  />
+                </div>
+
+                {/* Play Button / Index */}
+                <div className="col-span-1 text-center">
+                  {isCurrentSong ? (
+                    <button
+                      onClick={() => isPlaying ? pauseSong() : playSong(song)}
+                      className="text-primary-500 hover:text-primary-400 transition-colors"
+                    >
+                      {isPlaying ? <Pause size={16} /> : <Play size={16} />}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => playSong(song, filteredSongs)}
+                      className="text-gray-400 hover:text-white transition-colors"
+                    >
+                      <Play size={16} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Song Info */}
+                <div className="col-span-4 flex items-center space-x-3">
+                  {song.imageUrl ? (
                     <img
-                      src={song.imageUrl || '/default-album.jpg'}
+                      src={song.imageUrl}
                       alt={song.title}
-                      className="w-10 h-10 rounded object-cover mr-3"
+                      className="w-12 h-12 rounded-md object-cover"
                     />
-                    <div>
-                      <div className="text-white font-medium">{song.title}</div>
+                  ) : (
+                    <div className="w-12 h-12 bg-gray-700 rounded-md flex items-center justify-center">
+                      <Music className="w-6 h-6 text-gray-400" />
                     </div>
+                  )}
+                  <div className="min-w-0">
+                    <p className={`font-medium truncate ${
+                      isCurrentSong ? 'text-primary-500' : 'text-white'
+                    }`}>
+                      {song.title}
+                    </p>
+                    <p className="text-gray-400 text-sm truncate">{song.artist}</p>
                   </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-gray-300">
-                  {song.artist}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-gray-300">
-                  {song.album || 'N/A'}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="px-2 py-1 text-xs bg-primary-500/20 text-primary-300 rounded-full">
-                    {song.genre || 'Unknown'}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-gray-300">
-                  {formatDuration(song.duration)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-gray-300">
-                  {song.playCount || 0}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-gray-300">
-                  {formatDate(song.createdAt)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => setEditingSong(song)}
-                      className="text-blue-400 hover:text-blue-300 transition-colors"
-                      title="Edit"
-                    >
-                      <Edit size={16} />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteSong(song.id, song.title)}
-                      className="text-red-400 hover:text-red-300 transition-colors"
-                      title="Delete"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </div>
+
+                {/* Album */}
+                <div className="col-span-2">
+                  <p className="text-gray-400 truncate">{song.album || 'Unknown Album'}</p>
+                  <p className="text-gray-500 text-xs">{song.genre || 'Unknown'}</p>
+                </div>
+
+                {/* Plays */}
+                <div className="col-span-1">
+                  <p className="text-white">{formatPlayCount(song.playCount || 0)}</p>
+                </div>
+
+                {/* Duration */}
+                <div className="col-span-1">
+                  <p className="text-gray-400">{formatTime(song.duration || 0)}</p>
+                </div>
+
+                {/* Added Date */}
+                <div className="col-span-1">
+                  <p className="text-gray-400 text-sm">
+                    {song.createdAt ? getTimeAgo(song.createdAt.toDate()) : 'Unknown'}
+                  </p>
+                </div>
+
+                {/* Actions */}
+                <div className="col-span-1 flex items-center space-x-2">
+                  <button
+                    onClick={() => {
+                      // Handle edit song
+                    }}
+                    className="text-gray-400 hover:text-white transition-colors"
+                    title="Edit song"
+                  >
+                    <Edit size={16} />
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteModal(song.id)}
+                    className="text-gray-400 hover:text-red-500 transition-colors"
+                    title="Delete song"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Empty State */}
+        {filteredSongs.length === 0 && (
+          <div className="text-center py-20">
+            <Music size={48} className="text-gray-600 mx-auto mb-4" />
+            <p className="text-gray-400 text-lg mb-2">No songs found</p>
+            <p className="text-gray-500">Try adjusting your search or filters</p>
+          </div>
+        )}
       </div>
 
-      {filteredSongs.length === 0 && (
-        <div className="text-center py-12">
-          <Music size={48} className="mx-auto text-gray-600 mb-4" />
-          <p className="text-gray-400">No songs found</p>
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-dark-100 rounded-xl shadow-2xl max-w-md w-full">
+            <div className="p-6">
+              <h3 className="text-xl font-bold text-white mb-4">Delete Song</h3>
+              <p className="text-gray-400 mb-6">
+                Are you sure you want to delete this song? This action cannot be undone.
+              </p>
+              <div className="flex justify-end space-x-4">
+                <button
+                  onClick={() => setShowDeleteModal(null)}
+                  className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleDeleteSong(showDeleteModal)}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
-
-      {/* Edit Modal */}
-      {editingSong && (
-        <EditSongModal
-          song={editingSong}
-          onSave={handleEditSong}
-          onClose={() => setEditingSong(null)}
-        />
-      )}
-    </div>
-  );
-};
-
-// Edit Song Modal Component
-const EditSongModal = ({ song, onSave, onClose }) => {
-  const [formData, setFormData] = useState({
-    title: song.title || '',
-    artist: song.artist || '',
-    album: song.album || '',
-    genre: song.genre || ''
-  });
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSave(song.id, formData);
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-dark-100 rounded-lg shadow-2xl w-full max-w-md">
-        <div className="p-6 border-b border-gray-700">
-          <h3 className="text-xl font-bold text-white">Edit Song</h3>
-        </div>
-        
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div>
-            <label className="block text-gray-300 text-sm font-medium mb-2">
-              Title
-            </label>
-            <input
-              type="text"
-              value={formData.title}
-              onChange={(e) => setFormData({...formData, title: e.target.value})}
-              className="w-full px-3 py-2 bg-dark-200 border border-gray-600 rounded text-white focus:ring-2 focus:ring-primary-500"
-              required
-            />
-          </div>
-          
-          <div>
-            <label className="block text-gray-300 text-sm font-medium mb-2">
-              Artist
-            </label>
-            <input
-              type="text"
-              value={formData.artist}
-              onChange={(e) => setFormData({...formData, artist: e.target.value})}
-              className="w-full px-3 py-2 bg-dark-200 border border-gray-600 rounded text-white focus:ring-2 focus:ring-primary-500"
-              required
-            />
-          </div>
-          
-          <div>
-            <label className="block text-gray-300 text-sm font-medium mb-2">
-              Album
-            </label>
-            <input
-              type="text"
-              value={formData.album}
-              onChange={(e) => setFormData({...formData, album: e.target.value})}
-              className="w-full px-3 py-2 bg-dark-200 border border-gray-600 rounded text-white focus:ring-2 focus:ring-primary-500"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-gray-300 text-sm font-medium mb-2">
-              Genre
-            </label>
-            <input
-              type="text"
-              value={formData.genre}
-              onChange={(e) => setFormData({...formData, genre: e.target.value})}
-              className="w-full px-3 py-2 bg-dark-200 border border-gray-600 rounded text-white focus:ring-2 focus:ring-primary-500"
-            />
-          </div>
-          
-          <div className="flex space-x-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 py-2 px-4 border border-gray-600 text-gray-300 rounded hover:bg-gray-700 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="flex-1 py-2 px-4 bg-primary-500 hover:bg-primary-600 text-white rounded transition-colors"
-            >
-              Save Changes
-            </button>
-          </div>
-        </form>
-      </div>
     </div>
   );
 };

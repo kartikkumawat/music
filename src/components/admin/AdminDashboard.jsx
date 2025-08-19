@@ -1,9 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../../services/firebase';
-import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
-import { Music, Users, List, TrendingUp, Calendar, Play } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { songsAPI } from '../../services/api';
+import {
+  Music,
+  Upload,
+  BarChart3,
+  Users,
+  Settings,
+  LogOut,
+  TrendingUp,
+  Clock,
+  PlayCircle,
+  Database
+} from 'lucide-react';
+import { formatPlayCount, getTimeAgo } from '../../utils/helpers';
 
-const AdminDashboard = ({ stats }) => {
+const AdminDashboard = () => {
+  const { logout } = useAuth();
+  const [stats, setStats] = useState({
+    totalSongs: 0,
+    totalPlays: 0,
+    totalUsers: 0,
+    recentUploads: 0
+  });
   const [recentSongs, setRecentSongs] = useState([]);
   const [topSongs, setTopSongs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -14,32 +33,35 @@ const AdminDashboard = ({ stats }) => {
 
   const fetchDashboardData = async () => {
     try {
-      // Fetch recent songs
-      const recentQuery = query(
-        collection(db, 'songs'),
-        orderBy('createdAt', 'desc'),
-        limit(5)
-      );
-      const recentSnapshot = await getDocs(recentQuery);
-      const recent = recentSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      setLoading(true);
 
-      // Fetch top played songs
-      const topQuery = query(
-        collection(db, 'songs'),
-        orderBy('playCount', 'desc'),
-        limit(5)
-      );
-      const topSnapshot = await getDocs(topQuery);
-      const top = topSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      // Fetch all songs
+      const allSongs = await songsAPI.getAll();
+
+      // Fetch recent songs
+      const recent = await songsAPI.getRecent(5);
+
+      // Fetch popular songs
+      const popular = await songsAPI.getPopular(5);
+
+      // Calculate stats
+      const totalPlays = allSongs.reduce((sum, song) => sum + (song.playCount || 0), 0);
+      const recentUploads = allSongs.filter(song => {
+        const uploadDate = song.createdAt?.toDate();
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        return uploadDate && uploadDate > weekAgo;
+      }).length;
+
+      setStats({
+        totalSongs: allSongs.length,
+        totalPlays,
+        totalUsers: 150, // Mock data - you can implement user tracking
+        recentUploads
+      });
 
       setRecentSongs(recent);
-      setTopSongs(top);
+      setTopSongs(popular);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -47,49 +69,48 @@ const AdminDashboard = ({ stats }) => {
     }
   };
 
-  const formatDate = (timestamp) => {
-    if (!timestamp) return 'Unknown';
-    return new Date(timestamp.seconds * 1000).toLocaleDateString();
-  };
-
-  const StatCard = ({ icon: Icon, title, value, change, color = 'text-primary-500' }) => (
-    <div className="bg-dark-100 rounded-lg p-6 border border-gray-700">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-gray-400 text-sm font-medium">{title}</p>
-          <p className="text-2xl font-bold text-white mt-1">{value}</p>
-          {change && (
-            <p className={`text-sm mt-1 ${change > 0 ? 'text-green-400' : 'text-red-400'}`}>
-              {change > 0 ? '+' : ''}{change}% from last week
-            </p>
-          )}
+  const StatCard = ({ title, value, icon: Icon, color, change }) => (
+    <div className="bg-dark-100 rounded-xl p-6 border border-gray-700 hover:border-gray-600 transition-colors">
+      <div className="flex items-center justify-between mb-4">
+        <div className={`p-3 rounded-lg ${color}`}>
+          <Icon size={24} className="text-white" />
         </div>
-        <div className={`p-3 rounded-full bg-opacity-10 ${color} bg-current`}>
-          <Icon size={24} className={color} />
-        </div>
+        {change && (
+          <div className="flex items-center text-green-400 text-sm">
+            <TrendingUp size={16} className="mr-1" />
+            {change}
+          </div>
+        )}
       </div>
+      <h3 className="text-2xl font-bold text-white mb-1">{value}</h3>
+      <p className="text-gray-400 text-sm">{title}</p>
     </div>
   );
 
-  const SongRow = ({ song, showPlayCount = false }) => (
-    <div className="flex items-center space-x-4 p-3 hover:bg-dark-200 rounded-lg transition-colors">
-      <img
-        src={song.imageUrl || '/default-album.jpg'}
-        alt={song.title}
-        className="w-12 h-12 rounded object-cover"
-      />
+  const SongRow = ({ song, showPlays = false }) => (
+    <div className="flex items-center space-x-3 p-3 hover:bg-dark-200 rounded-lg transition-colors">
+      {song.imageUrl ? (
+        <img
+          src={song.imageUrl}
+          alt={song.title}
+          className="w-12 h-12 rounded-md object-cover"
+        />
+      ) : (
+        <div className="w-12 h-12 bg-gray-700 rounded-md flex items-center justify-center">
+          <Music className="w-6 h-6 text-gray-400" />
+        </div>
+      )}
       <div className="flex-1 min-w-0">
         <p className="text-white font-medium truncate">{song.title}</p>
         <p className="text-gray-400 text-sm truncate">{song.artist}</p>
       </div>
       <div className="text-right">
-        {showPlayCount ? (
-          <div className="flex items-center space-x-1">
-            <Play size={12} className="text-gray-400" />
-            <span className="text-gray-400 text-sm">{song.playCount || 0}</span>
-          </div>
+        {showPlays ? (
+          <p className="text-white font-medium">{formatPlayCount(song.playCount || 0)}</p>
         ) : (
-          <span className="text-gray-400 text-sm">{formatDate(song.createdAt)}</span>
+          <p className="text-gray-400 text-sm">
+            {song.createdAt ? getTimeAgo(song.createdAt.toDate()) : 'Unknown'}
+          </p>
         )}
       </div>
     </div>
@@ -97,146 +118,110 @@ const AdminDashboard = ({ stats }) => {
 
   if (loading) {
     return (
-      <div className="bg-dark-100 rounded-lg p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-4 bg-gray-700 rounded w-1/4"></div>
-          <div className="space-y-3">
-            <div className="h-3 bg-gray-700 rounded"></div>
-            <div className="h-3 bg-gray-700 rounded w-5/6"></div>
-            <div className="h-3 bg-gray-700 rounded w-3/4"></div>
-          </div>
+      <div className="min-h-screen bg-dark-300 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin-slow w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading dashboard...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Welcome Message */}
-      <div className="bg-gradient-to-r from-primary-600 to-primary-800 rounded-lg p-6">
-        <h1 className="text-2xl font-bold text-white mb-2">Welcome to Admin Dashboard</h1>
-        <p className="text-primary-100">Manage your music streaming platform from here.</p>
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard
-          icon={Music}
-          title="Total Songs"
-          value={stats.totalSongs}
-          change={5}
-          color="text-primary-500"
-        />
-        <StatCard
-          icon={List}
-          title="Total Playlists"
-          value={stats.totalPlaylists}
-          change={12}
-          color="text-green-500"
-        />
-        <StatCard
-          icon={Users}
-          title="Active Users"
-          value={stats.totalUsers || 0}
-          change={-2}
-          color="text-blue-500"
-        />
-        <StatCard
-          icon={TrendingUp}
-          title="Recent Uploads"
-          value={stats.recentUploads}
-          change={8}
-          color="text-orange-500"
-        />
-      </div>
-
-      {/* Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Songs */}
-        <div className="bg-dark-100 rounded-lg p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-white">Recent Uploads</h3>
-            <Calendar size={18} className="text-gray-400" />
+    <div className="min-h-screen bg-dark-300">
+      {/* Header */}
+      <div className="bg-dark-200 border-b border-gray-700 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center">
+              <Settings size={20} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-white">Admin Dashboard</h1>
+              <p className="text-gray-400 text-sm">Music Stream Management</p>
+            </div>
           </div>
-          <div className="space-y-2">
-            {recentSongs.length > 0 ? (
-              recentSongs.map((song) => (
-                <SongRow key={song.id} song={song} />
-              ))
-            ) : (
-              <p className="text-gray-400 text-center py-4">No recent uploads</p>
-            )}
-          </div>
-        </div>
-
-        {/* Top Songs */}
-        <div className="bg-dark-100 rounded-lg p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-white">Most Played</h3>
-            <TrendingUp size={18} className="text-gray-400" />
-          </div>
-          <div className="space-y-2">
-            {topSongs.length > 0 ? (
-              topSongs.map((song, index) => (
-                <div key={song.id} className="flex items-center space-x-3">
-                  <span className="text-primary-500 font-bold text-lg w-6">
-                    {index + 1}
-                  </span>
-                  <div className="flex-1">
-                    <SongRow song={song} showPlayCount />
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-400 text-center py-4">No play data available</p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="bg-dark-100 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-white mb-4">Quick Actions</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button className="flex items-center justify-center space-x-2 bg-primary-500 hover:bg-primary-600 text-white p-4 rounded-lg transition-colors">
-            <Music size={20} />
-            <span>Upload New Song</span>
-          </button>
-          <button className="flex items-center justify-center space-x-2 bg-green-500 hover:bg-green-600 text-white p-4 rounded-lg transition-colors">
-            <TrendingUp size={20} />
-            <span>View Analytics</span>
-          </button>
-          <button className="flex items-center justify-center space-x-2 bg-blue-500 hover:bg-blue-600 text-white p-4 rounded-lg transition-colors">
-            <Users size={20} />
-            <span>Manage Users</span>
+          <button
+            onClick={logout}
+            className="flex items-center space-x-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+          >
+            <LogOut size={18} />
+            <span>Logout</span>
           </button>
         </div>
       </div>
 
-      {/* System Status */}
-      <div className="bg-dark-100 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-white mb-4">System Status</h3>
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-gray-300">Database Connection</span>
-            <span className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span className="text-green-400 text-sm">Online</span>
-            </span>
+      <div className="p-6 max-w-7xl mx-auto">
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <StatCard
+            title="Total Songs"
+            value={stats.totalSongs.toLocaleString()}
+            icon={Music}
+            color="bg-blue-500"
+            change="+12%"
+          />
+          <StatCard
+            title="Total Plays"
+            value={formatPlayCount(stats.totalPlays)}
+            icon={PlayCircle}
+            color="bg-green-500"
+            change="+8%"
+          />
+          <StatCard
+            title="Active Users"
+            value={stats.totalUsers.toLocaleString()}
+            icon={Users}
+            color="bg-purple-500"
+            change="+5%"
+          />
+          <StatCard
+            title="Recent Uploads"
+            value={stats.recentUploads.toString()}
+            icon={Upload}
+            color="bg-orange-500"
+            change="+3"
+          />
+        </div>
+
+        {/* Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Recent Songs */}
+          <div className="bg-dark-100 rounded-xl border border-gray-700">
+            <div className="p-6 border-b border-gray-700">
+              <div className="flex items-center space-x-2">
+                <Clock size={20} className="text-primary-500" />
+                <h2 className="text-lg font-semibold text-white">Recent Uploads</h2>
+              </div>
+            </div>
+            <div className="p-3">
+              {recentSongs.length > 0 ? (
+                recentSongs.map(song => (
+                  <SongRow key={song.id} song={song} />
+                ))
+              ) : (
+                <p className="text-gray-400 text-center py-8">No recent uploads</p>
+              )}
+            </div>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-gray-300">Storage Service</span>
-            <span className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span className="text-green-400 text-sm">Connected</span>
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-gray-300">Audio Processing</span>
-            <span className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span className="text-green-400 text-sm">Ready</span>
-            </span>
+
+          {/* Top Songs */}
+          <div className="bg-dark-100 rounded-xl border border-gray-700">
+            <div className="p-6 border-b border-gray-700">
+              <div className="flex items-center space-x-2">
+                <BarChart3 size={20} className="text-primary-500" />
+                <h2 className="text-lg font-semibold text-white">Top Performing</h2>
+              </div>
+            </div>
+            <div className="p-3">
+              {topSongs.length > 0 ? (
+                topSongs.map(song => (
+                  <SongRow key={song.id} song={song} showPlays={true} />
+                ))
+              ) : (
+                <p className="text-gray-400 text-center py-8">No play data available</p>
+              )}
+            </div>
           </div>
         </div>
       </div>

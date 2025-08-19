@@ -7,7 +7,7 @@ A modern music streaming application with playlist management, search functional
 - **Frontend**: React 18.2.0 + Vite 4.4.5
 - **Styling**: Tailwind CSS 3.3.3
 - **Audio**: HTML5 Audio API + Custom Controls
-- **Backend Services**: 
+- **Backend Services**:
   - Firebase 10.3.1 (Auth, Firestore)
   - Cloudinary (Audio/Image Storage)
 - **State Management**: React Context + Hooks
@@ -32,12 +32,13 @@ music-streaming-app/
 │   │   ├── music/
 │   │   │   ├── SongCard.jsx
 │   │   │   ├── SongList.jsx
-│   │   │   └── SearchBar.jsx
-
+│   │   │   ├── SearchBar.jsx
+│   │   │   └── SongDetail.jsx
 │   │   ├── playlist/
 │   │   │   ├── PlaylistCard.jsx
 │   │   │   ├── PlaylistCreator.jsx
-│   │   │   └── PlaylistManager.jsx
+│   │   │   ├── PlaylistManager.jsx
+|   |   |   └── PlaylistDetail.jsx
 │   │   └── admin/
 │   │       ├── AdminLogin.jsx
 │   │       ├── AdminDashboard.jsx
@@ -346,7 +347,7 @@ export const MusicProvider = ({ children }) => {
   const [volume, setVolume] = useState(1);
   const [playlist, setPlaylist] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  
+
   const audioRef = useRef(new Audio());
 
   useEffect(() => {
@@ -354,7 +355,7 @@ export const MusicProvider = ({ children }) => {
 
     const updateTime = () => setCurrentTime(audio.currentTime);
     const updateDuration = () => setDuration(audio.duration);
-    
+
     audio.addEventListener('timeupdate', updateTime);
     audio.addEventListener('loadedmetadata', updateDuration);
     audio.addEventListener('ended', nextSong);
@@ -368,7 +369,7 @@ export const MusicProvider = ({ children }) => {
 
   const playSong = (song, songPlaylist = []) => {
     const audio = audioRef.current;
-    
+
     if (currentSong?.id === song.id) {
       if (isPlaying) {
         audio.pause();
@@ -382,7 +383,7 @@ export const MusicProvider = ({ children }) => {
       setPlaylist(songPlaylist);
       const index = songPlaylist.findIndex(s => s.id === song.id);
       setCurrentIndex(index >= 0 ? index : 0);
-      
+
       audio.src = song.audioUrl;
       audio.volume = volume;
       audio.play();
@@ -771,7 +772,7 @@ function App() {
                   </div>
                 }
               />
-              
+
               {/* Hidden Admin Route */}
               <Route path="/music-admin" element={<HiddenAdminRoute />} />
             </Routes>
@@ -887,14 +888,14 @@ npm run preview
 
 ## Key Features Implemented
 
-✅ **Audio Playback**: HTML5 Audio with custom controls  
-✅ **Search Functionality**: Real-time search with debouncing  
-✅ **Playlist Management**: Create, edit, delete playlists  
-✅ **Admin Panel**: Hidden admin access via `/music-admin`  
-✅ **Firebase Auth**: Secure admin authentication  
-✅ **Cloudinary Integration**: Audio and image upload  
-✅ **Responsive Design**: Mobile-first approach  
-✅ **Modern UI**: Dark theme with smooth animations  
+✅ **Audio Playback**: HTML5 Audio with custom controls
+✅ **Search Functionality**: Real-time search with debouncing
+✅ **Playlist Management**: Create, edit, delete playlists
+✅ **Admin Panel**: Hidden admin access via `/music-admin`
+✅ **Firebase Auth**: Secure admin authentication
+✅ **Cloudinary Integration**: Audio and image upload
+✅ **Responsive Design**: Mobile-first approach
+✅ **Modern UI**: Dark theme with smooth animations
 
 ## Security Features
 
@@ -981,7 +982,7 @@ const SongUpload = () => {
   return (
     <div className="max-w-2xl mx-auto bg-dark-100 rounded-lg p-6">
       <h2 className="text-2xl font-bold text-white mb-6">Upload New Song</h2>
-      
+
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -996,7 +997,7 @@ const SongUpload = () => {
               required
             />
           </div>
-          
+
           <div>
             <label className="block text-gray-300 text-sm font-medium mb-2">
               Artist *
@@ -1009,7 +1010,7 @@ const SongUpload = () => {
               required
             />
           </div>
-          
+
           <div>
             <label className="block text-gray-300 text-sm font-medium mb-2">
               Album
@@ -1021,7 +1022,7 @@ const SongUpload = () => {
               className="w-full px-3 py-2 bg-dark-200 border border-gray-600 rounded-md text-white focus:ring-2 focus:ring-primary-500"
             />
           </div>
-          
+
           <div>
             <label className="block text-gray-300 text-sm font-medium mb-2">
               Genre
@@ -1098,7 +1099,7 @@ const SongUpload = () => {
 
         {uploading && (
           <div className="w-full bg-gray-600 rounded-full h-2">
-            <div 
+            <div
               className="bg-primary-500 h-2 rounded-full transition-all"
               style={{ width: `${progress}%` }}
             ></div>
@@ -1216,7 +1217,7 @@ const Home = () => {
           </button>
         )}
       </div>
-      
+
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
         {songs.map((song) => (
           <SongCard
@@ -1323,7 +1324,7 @@ const SongCard = ({ song, onClick, showArtist = true }) => {
           alt={song.title}
           className="w-full aspect-square object-cover rounded-md shadow-lg"
         />
-        
+
         {/* Play Button Overlay */}
         <div className={`absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-md transition-opacity ${
           showPlayButton ? 'opacity-100' : 'opacity-0'
@@ -1362,13 +1363,13 @@ const SongCard = ({ song, onClick, showArtist = true }) => {
         <h3 className="font-semibold text-white truncate group-hover:text-primary-400 transition-colors">
           {song.title}
         </h3>
-        
+
         {showArtist && (
           <p className="text-sm text-gray-400 truncate">
             {song.artist}
           </p>
         )}
-        
+
         <div className="flex items-center justify-between text-xs text-gray-500">
           <span>{song.genre || 'Unknown'}</span>
           {song.duration && (

@@ -1,17 +1,14 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { db } from '../services/firebase';
-import { 
-  collection, 
-  getDocs, 
-  addDoc, 
-  deleteDoc, 
-  updateDoc, 
-  doc, 
-  query, 
-  where, 
-  orderBy 
+import {
+  collection,
+  addDoc,
+  getDocs,
+  updateDoc,
+  deleteDoc,
+  doc,
+  serverTimestamp
 } from 'firebase/firestore';
-import { useAuth } from './AuthContext';
 
 const PlaylistContext = createContext();
 
@@ -25,34 +22,18 @@ export const usePlaylist = () => {
 
 export const PlaylistProvider = ({ children }) => {
   const [playlists, setPlaylists] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
-  useEffect(() => {
-    if (user) {
-      fetchPlaylists();
-    } else {
-      setPlaylists([]);
-      setLoading(false);
-    }
-  }, [user]);
-
+  // Fetch all playlists
   const fetchPlaylists = async () => {
-    if (!user) return;
-    
     try {
-      const playlistsQuery = query(
-        collection(db, 'playlists'),
-        where('userId', '==', user.uid),
-        orderBy('createdAt', 'desc')
-      );
-      
-      const snapshot = await getDocs(playlistsQuery);
-      const playlistsData = snapshot.docs.map(doc => ({
+      setLoading(true);
+      const querySnapshot = await getDocs(collection(db, 'playlists'));
+      const playlistsData = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
-      
       setPlaylists(playlistsData);
     } catch (error) {
       console.error('Error fetching playlists:', error);
@@ -61,23 +42,24 @@ export const PlaylistProvider = ({ children }) => {
     }
   };
 
-  const createPlaylist = async (name, description = '', imageUrl = '') => {
-    if (!user) throw new Error('User not authenticated');
-    
+  // Create new playlist
+  const createPlaylist = async (playlistData) => {
     try {
-      const playlistData = {
-        name,
-        description,
-        imageUrl,
-        userId: user.uid,
+      const docRef = await addDoc(collection(db, 'playlists'), {
+        ...playlistData,
+        songs: [],
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+
+      const newPlaylist = {
+        id: docRef.id,
+        ...playlistData,
         songs: [],
         createdAt: new Date(),
         updatedAt: new Date()
       };
-      
-      const docRef = await addDoc(collection(db, 'playlists'), playlistData);
-      const newPlaylist = { id: docRef.id, ...playlistData };
-      
+
       setPlaylists(prev => [newPlaylist, ...prev]);
       return newPlaylist;
     } catch (error) {
@@ -86,77 +68,114 @@ export const PlaylistProvider = ({ children }) => {
     }
   };
 
-  const updatePlaylist = async (playlistId, updates) => {
+  // Update playlist
+  const updatePlaylist = async (playlistId, playlistData) => {
     try {
       const playlistRef = doc(db, 'playlists', playlistId);
-      const updatedData = {
-        ...updates,
-        updatedAt: new Date()
-      };
-      
-      await updateDoc(playlistRef, updatedData);
-      
-      setPlaylists(prev => prev.map(playlist => 
-        playlist.id === playlistId 
-          ? { ...playlist, ...updatedData }
-          : playlist
+      await updateDoc(playlistRef, {
+        ...playlistData,
+        updatedAt: serverTimestamp()
+      });
+
+      setPlaylists(prev => prev.map(p =>
+        p.id === playlistId
+          ? { ...p, ...playlistData, updatedAt: new Date() }
+          : p
       ));
+
+      return true;
     } catch (error) {
       console.error('Error updating playlist:', error);
       throw error;
     }
   };
 
-  const deletePlaylist = async (playlistId) => {
+  // Add song to playlist
+  const addSongToPlaylist = async (playlistId, songId) => {
     try {
-      await deleteDoc(doc(db, 'playlists', playlistId));
-      setPlaylists(prev => prev.filter(playlist => playlist.id !== playlistId));
-    } catch (error) {
-      console.error('Error deleting playlist:', error);
-      throw error;
-    }
-  };
-
-  const addSongToPlaylist = async (playlistId, song) => {
-    try {
+      const playlistRef = doc(db, 'playlists', playlistId);
       const playlist = playlists.find(p => p.id === playlistId);
+
       if (!playlist) throw new Error('Playlist not found');
-      
-      const updatedSongs = [...(playlist.songs || []), song];
-      await updatePlaylist(playlistId, { songs: updatedSongs });
+
+      // Check if song is already in playlist
+      if (playlist.songs.includes(songId)) {
+        throw new Error('Song already in playlist');
+      }
+
+      const updatedSongs = [...playlist.songs, songId];
+      await updateDoc(playlistRef, {
+        songs: updatedSongs,
+        updatedAt: serverTimestamp()
+      });
+
+      setPlaylists(prev => prev.map(p =>
+        p.id === playlistId
+          ? { ...p, songs: updatedSongs, updatedAt: new Date() }
+          : p
+      ));
+
+      return true;
     } catch (error) {
       console.error('Error adding song to playlist:', error);
       throw error;
     }
   };
 
+  // Remove song from playlist
   const removeSongFromPlaylist = async (playlistId, songId) => {
     try {
+      const playlistRef = doc(db, 'playlists', playlistId);
       const playlist = playlists.find(p => p.id === playlistId);
+
       if (!playlist) throw new Error('Playlist not found');
-      
-      const updatedSongs = (playlist.songs || []).filter(song => song.id !== songId);
-      await updatePlaylist(playlistId, { songs: updatedSongs });
+
+      const updatedSongs = playlist.songs.filter(id => id !== songId);
+      await updateDoc(playlistRef, {
+        songs: updatedSongs,
+        updatedAt: serverTimestamp()
+      });
+
+      setPlaylists(prev => prev.map(p =>
+        p.id === playlistId
+          ? { ...p, songs: updatedSongs, updatedAt: new Date() }
+          : p
+      ));
+
+      return true;
     } catch (error) {
       console.error('Error removing song from playlist:', error);
       throw error;
     }
   };
 
-  const getPlaylistById = (playlistId) => {
-    return playlists.find(playlist => playlist.id === playlistId);
+  // Delete playlist
+  const deletePlaylist = async (playlistId) => {
+    try {
+      await deleteDoc(doc(db, 'playlists', playlistId));
+      setPlaylists(prev => prev.filter(p => p.id !== playlistId));
+      return true;
+    } catch (error) {
+      console.error('Error deleting playlist:', error);
+      throw error;
+    }
   };
+
+  useEffect(() => {
+    fetchPlaylists();
+  }, []);
 
   const value = {
     playlists,
     loading,
+    showCreateModal,
+    setShowCreateModal,
     createPlaylist,
     updatePlaylist,
-    deletePlaylist,
     addSongToPlaylist,
     removeSongFromPlaylist,
-    getPlaylistById,
-    refetchPlaylists: fetchPlaylists
+    deletePlaylist,
+    fetchPlaylists
   };
 
   return (
@@ -165,3 +184,5 @@ export const PlaylistProvider = ({ children }) => {
     </PlaylistContext.Provider>
   );
 };
+
+export default PlaylistContext;
