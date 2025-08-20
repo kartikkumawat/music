@@ -11,30 +11,30 @@ const Footer = () => {
   ];
 
   const footerLinks = {
-    'Product': [
-      'Features',
-      'Premium',
-      'Mobile App',
-      'Web Player'
-    ],
-    'Company': [
-      'About',
-      'Careers',
-      'Press',
-      'Contact'
-    ],
+    // 'Product': [
+    //   'Features',
+    //   'Premium',
+    //   'Mobile App',
+    //   'Web Player'
+    // ],
+    // 'Company': [
+    //   'About',
+    //   'Careers',
+    //   'Press',
+    //   'Contact'
+    // ],
     'Support': [
-      'Help Center',
-      'Community',
+      // 'Help Center',
+      // 'Community',
       'Privacy Policy',
       'Terms of Service'
     ],
-    'Developers': [
-      'API Documentation',
-      'SDKs',
-      'Integration',
-      'Partners'
-    ]
+    // 'Developers': [
+    //   'API Documentation',
+    //   'SDKs',
+    //   'Integration',
+    //   'Partners'
+    // ]
   };
 
   return (

@@ -1,116 +1,56 @@
 import React from 'react';
 import { useMusic } from '../../hooks/useMusic';
-import { Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Repeat1 } from 'lucide-react';
+import { useMusicActions } from '../../hooks/useMusicActions';
+import {
+  Play, Pause, SkipBack, SkipForward,
+  Shuffle, Repeat, Repeat1
+} from 'lucide-react';
 
 const AudioControls = () => {
+  const { isPlaying, currentSong, isShuffled, repeatMode , playlist} = useMusic();
   const {
-    isPlaying,
-    currentSong,
-    playSong,
-    pauseSong,
-    nextSong,
-    previousSong,
-    isShuffled,
-    repeatMode,
-    toggleShuffle,
-    toggleRepeat
-  } = useMusic();
-
-  const getRepeatIcon = () => {
-    switch (repeatMode) {
-      case 'one':
-        return Repeat1;
-      case 'all':
-        return Repeat;
-      default:
-        return Repeat;
-    }
-  };
-
-  const RepeatIcon = getRepeatIcon();
-
-  const getRepeatColor = () => {
-    switch (repeatMode) {
-      case 'one':
-        return 'text-green-500';
-      case 'all':
-        return 'text-blue-500';
-      default:
-        return 'text-gray-400';
-    }
-  };
+    playSong, pauseSong, nextSong,
+    previousSong, toggleShuffle, toggleRepeat
+  } = useMusicActions();
 
   const handlePlayPause = () => {
-    if (isPlaying) {
-      pauseSong();
-    } else if (currentSong) {
-      playSong(currentSong);
+    if (currentSong) {
+      playSong(currentSong, playlist); // Always use playSong for consistency
     }
   };
 
+
+  const RepeatIcon = repeatMode === 'one' ? Repeat1 : Repeat;
+  const repeatColor =
+    repeatMode === 'one' ? 'text-green-500'
+    : repeatMode === 'all' ? 'text-blue-500'
+    : 'text-gray-400';
+
   return (
-    <div className="flex items-center space-x-4">
-      {/* Shuffle */}
-      <button
-        onClick={toggleShuffle}
-        className={`p-2 rounded-full transition-colors ${
-          isShuffled
-            ? 'text-green-500 bg-green-500/20'
-            : 'text-gray-400 hover:text-white'
-        }`}
-        title={isShuffled ? 'Disable Shuffle' : 'Enable Shuffle'}
-      >
-        <Shuffle className="w-4 h-4" />
-      </button>
-
+    <div className="flex items-center gap-4 select-none">
       {/* Previous */}
-      <button
-        onClick={previousSong}
-        disabled={!currentSong}
-        className="p-2 rounded-full text-gray-400 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        title="Previous Song"
-      >
-        <SkipBack className="w-5 h-5" />
-      </button>
+      <button className='text-gray-400' onClick={previousSong}><SkipBack/></button>
 
-      {/* Play/Pause */}
-      <button
-        onClick={handlePlayPause}
-        disabled={!currentSong}
-        className="p-3 bg-white text-black rounded-full hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        title={isPlaying ? 'Pause' : 'Play'}
-      >
-        {isPlaying ? (
-          <Pause className="w-6 h-6" />
-        ) : (
-          <Play className="w-6 h-6 ml-1" />
-        )}
+      {/* Play / Pause */}
+      <button className='text-gray-400' onClick={handlePlayPause}>
+        {isPlaying ? <Pause/>  : <Play/>}
       </button>
 
       {/* Next */}
+      <button className='text-gray-400' onClick={nextSong}><SkipForward/></button>
+
+      {/* Shuffle */}
       <button
-        onClick={nextSong}
-        disabled={!currentSong}
-        className="p-2 rounded-full text-gray-400 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        title="Next Song"
-      >
-        <SkipForward className="w-5 h-5" />
+        onClick={toggleShuffle}
+        className={isShuffled ? 'text-blue-500' : 'text-gray-400'}>
+        <Shuffle/>
       </button>
 
       {/* Repeat */}
       <button
         onClick={toggleRepeat}
-        className={`p-2 rounded-full transition-colors ${getRepeatColor()} hover:text-white relative`}
-        title={
-          repeatMode === 'off' ? 'Enable Repeat All' :
-          repeatMode === 'all' ? 'Enable Repeat One' :
-          'Disable Repeat'
-        }
-      >
-        <RepeatIcon className="w-4 h-4" />
-        {repeatMode !== 'off' && (
-          <div className="absolute -bottom-1 -right-1 w-2 h-2 bg-current rounded-full" />
-        )}
+        className={repeatColor}>
+        <RepeatIcon/>
       </button>
     </div>
   );

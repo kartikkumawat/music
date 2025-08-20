@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { usePlaylist } from '../../contexts/PlaylistContext';
 import { useMusic } from '../../hooks/useMusic';
+import { useMusicActions } from '../../hooks/useMusicActions';
 import { db } from '../../services/firebase';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
 import { Play, Pause, MoreHorizontal, Edit, Trash2, Clock, Music } from 'lucide-react';
 import SongList from '../music/SongList';
 import Loading from '../common/Loading';
@@ -12,12 +13,50 @@ const PlaylistDetail = () => {
   const { playlistId } = useParams();
   const navigate = useNavigate();
   const { deletePlaylist, removeSongFromPlaylist } = usePlaylist();
-  const { currentSong, isPlaying, playSong } = useMusic();
+  const { currentSong, isPlaying } = useMusic();
+  const { playSong } = useMusicActions();
 
   const [playlist, setPlaylist] = useState(null);
   const [songs, setSongs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showMenu, setShowMenu] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedPlaylist, setEditedPlaylist] = useState({ name: '', description: '' });
+
+  const handleEditPlaylist = () => {
+    setEditedPlaylist({
+      name: playlist.name,
+      description: playlist.description || ''
+    });
+    setIsEditing(true);
+    setShowMenu(false);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editedPlaylist.name.trim()) {
+      alert('Playlist name is required');
+      return;
+    }
+    try {
+      await updateDoc(doc(db, 'playlists', playlistId), {
+        name: editedPlaylist.name,
+        description: editedPlaylist.description,
+        updatedAt: new Date()
+      });
+      setPlaylist(prev => ({
+        ...prev,
+        name: editedPlaylist.name,
+        description: editedPlaylist.description
+      }));
+      setIsEditing(false);
+    } catch (error) {
+      alert('Failed to update playlist');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+  };
 
   useEffect(() => {
     fetchPlaylistDetails();
@@ -155,7 +194,7 @@ const PlaylistDetail = () => {
               <p className="text-sm font-medium text-white/80 uppercase tracking-wider mb-2">
                 Playlist
               </p>
-              <h1 className="text-5xl font-bold text-white mb-4 truncate">
+              <h1 className="text-5xl font-bold text-white mb-4 ">
                 {playlist.name}
               </h1>
               {playlist.description && (
@@ -164,11 +203,10 @@ const PlaylistDetail = () => {
                 </p>
               )}
               <div className="flex items-center space-x-2 text-sm text-gray-300">
-                <span className={`px-2 py-1 rounded text-xs ${
-                  playlist.isPublic
+                <span className={`px-2 py-1 rounded text-xs ${playlist.isPublic
                     ? 'bg-green-500/20 text-green-400'
                     : 'bg-gray-500/20 text-gray-400'
-                }`}>
+                  }`}>
                   {playlist.isPublic ? 'Public' : 'Private'}
                 </span>
                 <span>•</span>
@@ -210,10 +248,7 @@ const PlaylistDetail = () => {
               {showMenu && (
                 <div className="absolute top-full left-0 mt-2 bg-dark-200 border border-gray-600 rounded-lg shadow-xl z-10 min-w-32">
                   <button
-                    onClick={() => {
-                      console.log('Edit playlist');
-                      setShowMenu(false);
-                    }}
+                    onClick={handleEditPlaylist}
                     className="w-full flex items-center px-4 py-2 text-sm text-white hover:bg-gray-700 rounded-t-lg transition-colors"
                   >
                     <Edit size={14} className="mr-2" />
@@ -259,6 +294,33 @@ const PlaylistDetail = () => {
           )}
         </div>
       </div>
+      {isEditing && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-gray-800 rounded-lg shadow-2xl max-w-md w-full p-6">
+            <h2 className="text-xl font-bold mb-4 text-white">Edit Playlist</h2>
+            <div className="space-y-4">
+              <input
+                type="text"
+                value={editedPlaylist.name}
+                onChange={(e) => setEditedPlaylist(prev => ({ ...prev, name: e.target.value }))}
+                className="w-full px-3 py-2 bg-gray-800 text-white border border-gray-600 rounded-md"
+                placeholder="Playlist name"
+              />
+              <textarea
+                value={editedPlaylist.description}
+                onChange={(e) => setEditedPlaylist(prev => ({ ...prev, description: e.target.value }))}
+                className="w-full px-3 py-2 bg-gray-800 text-white border border-gray-600 rounded-md"
+                placeholder="Description"
+                rows="3"
+              />
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button onClick={handleSaveEdit} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">Save</button>
+              <button onClick={handleCancelEdit} className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Click outside to close menu */}
       {showMenu && (

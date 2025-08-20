@@ -1,10 +1,10 @@
 import { useContext } from 'react';
-import { MusicContext } from '../contexts/MusicContext';
+import { MusicPlayerContext } from '../contexts/MusicPlayerContext';
 
 export const useMusic = () => {
-  const context = useContext(MusicContext);
+  const context = useContext(MusicPlayerContext);
   if (!context) {
-    throw new Error('useMusic must be used within MusicProvider');
+    throw new Error('useMusic must be used within MusicPlayerProvider');
   }
   return context;
 };

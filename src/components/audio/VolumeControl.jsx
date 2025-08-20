@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useMusic } from '../../hooks/useMusic';
+import { useMusicActions } from '../../hooks/useMusicActions';
 import { Volume2, Volume1, VolumeX } from 'lucide-react';
 
 const VolumeControl = ({ className = '' }) => {
-  const { volume, changeVolume } = useMusic();
+  const { volume } = useMusic();
+  const { changeVolume } = useMusicActions();
   const [previousVolume, setPreviousVolume] = useState(1);
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
 

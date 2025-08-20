@@ -1,24 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { songsAPI } from '../../services/api';
-import {
-  Search,
-  Edit,
-  Trash2,
-  Play,
-  Pause,
-  MoreHorizontal,
-  Filter,
-  Download,
-  Eye,
-  Calendar,
-  Music
-} from 'lucide-react';
+import { Search, Edit, Trash2, Play, Pause, MoreHorizontal, Filter, Download, Eye, Calendar, Music, X } from 'lucide-react';
 import { useMusic } from '../../hooks/useMusic';
+import { useMusicActions } from '../../hooks/useMusicActions';
 import { formatTime, formatPlayCount, getTimeAgo } from '../../utils/helpers';
 import { GENRES } from '../../utils/constants';
 
 const SongManager = () => {
-  const { currentSong, isPlaying, playSong, pauseSong } = useMusic();
+  const { currentSong, isPlaying } = useMusic();
+  const { playSong, pauseSong } = useMusicActions();
   const [songs, setSongs] = useState([]);
   const [filteredSongs, setFilteredSongs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,6 +17,13 @@ const SongManager = () => {
   const [sortBy, setSortBy] = useState('newest');
   const [selectedSongs, setSelectedSongs] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(null);
+  const [editFormData, setEditFormData] = useState({
+    title: '',
+    artist: '',
+    album: '',
+    genre: ''
+  });
 
   useEffect(() => {
     fetchSongs();
@@ -103,6 +100,29 @@ const SongManager = () => {
     }
   };
 
+  const handleEditSong = async (e) => {
+    e.preventDefault();
+    try {
+      await songsAPI.update(showEditModal, editFormData);
+      await fetchSongs();
+      setShowEditModal(null);
+      setEditFormData({ title: '', artist: '', album: '', genre: '' });
+    } catch (error) {
+      console.error('Error updating song:', error);
+      alert('Failed to update song. Please try again.');
+    }
+  };
+
+  const openEditModal = (song) => {
+    setShowEditModal(song.id);
+    setEditFormData({
+      title: song.title || '',
+      artist: song.artist || '',
+      album: song.album || '',
+      genre: song.genre || ''
+    });
+  };
+
   const handleBulkDelete = async () => {
     if (selectedSongs.length === 0) return;
 
@@ -117,6 +137,14 @@ const SongManager = () => {
       }
     }
   };
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setSelectedGenre('');
+    setSortBy('newest');
+  };
+
+  const hasActiveFilters = searchQuery || selectedGenre || sortBy !== 'newest';
 
   const toggleSongSelection = (songId) => {
     setSelectedSongs(prev =>
@@ -134,265 +162,358 @@ const SongManager = () => {
     );
   };
 
+  const handlePlayPause = (song) => {
+    if (currentSong?.id === song.id && isPlaying) {
+      pauseSong();
+    } else {
+      playSong(song);
+    }
+  };
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin-slow w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p className="text-gray-400">Loading songs...</p>
+          <Music className="w-16 h-16 text-blue-500 animate-spin-slow mx-auto mb-4" />
+          <p className="text-gray-300 text-lg">Loading songs...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-white mb-2">Song Manager</h1>
-          <p className="text-gray-400">{filteredSongs.length} of {songs.length} songs</p>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-4 sm:p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Song Manager</h1>
 
-        {selectedSongs.length > 0 && (
-          <div className="flex items-center space-x-4">
-            <span className="text-gray-400">{selectedSongs.length} selected</span>
-            <button
-              onClick={handleBulkDelete}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center space-x-2"
-            >
-              <Trash2 size={16} />
-              <span>Delete Selected</span>
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Filters */}
-      <div className="bg-dark-100 rounded-xl p-6 mb-8 border border-gray-700">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Search */}
-          <div className="relative">
-            <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search songs..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-dark-200 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-primary-500"
-            />
-          </div>
-
-          {/* Genre Filter */}
-          <select
-            value={selectedGenre}
-            onChange={(e) => setSelectedGenre(e.target.value)}
-            className="px-4 py-2 bg-dark-200 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-primary-500"
-          >
-            <option value="">All Genres</option>
-            {GENRES.map(genre => (
-              <option key={genre} value={genre}>{genre}</option>
-            ))}
-          </select>
-
-          {/* Sort */}
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="px-4 py-2 bg-dark-200 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-primary-500"
-          >
-            <option value="newest">Newest First</option>
-            <option value="oldest">Oldest First</option>
-            <option value="most-played">Most Played</option>
-            <option value="least-played">Least Played</option>
-            <option value="title-asc">Title A-Z</option>
-            <option value="title-desc">Title Z-A</option>
-            <option value="artist-asc">Artist A-Z</option>
-            <option value="artist-desc">Artist Z-A</option>
-          </select>
-
-          {/* Clear Filters */}
-          <button
-            onClick={() => {
-              setSearchQuery('');
-              setSelectedGenre('');
-              setSortBy('newest');
-            }}
-            className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors"
-          >
-            Clear Filters
-          </button>
-        </div>
-      </div>
-
-      {/* Songs Table */}
-      <div className="bg-dark-100 rounded-xl border border-gray-700 overflow-hidden">
-        {/* Table Header */}
-        <div className="bg-dark-200 border-b border-gray-700 p-4">
-          <div className="grid grid-cols-12 gap-4 items-center text-sm font-medium text-gray-400">
-            <div className="col-span-1">
-              <input
-                type="checkbox"
-                checked={selectedSongs.length === filteredSongs.length && filteredSongs.length > 0}
-                onChange={toggleSelectAll}
-                className="w-4 h-4 text-primary-500 bg-dark-200 border-gray-600 rounded focus:ring-primary-500"
-              />
+          {/* Search and Filters */}
+          <div className="flex flex-col sm:flex-row gap-4 mb-4">
+            {/* Search Bar */}
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="text"
+                  placeholder="Search songs, artists, or albums..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                />
+              </div>
             </div>
-            <div className="col-span-1 text-center">#</div>
-            <div className="col-span-4">Song</div>
-            <div className="col-span-2">Album</div>
-            <div className="col-span-1">Plays</div>
-            <div className="col-span-1">Duration</div>
-            <div className="col-span-1">Added</div>
-            <div className="col-span-1">Actions</div>
+
+            {/* Filters */}
+            <div className="flex flex-col xs:flex-row gap-2">
+              <select
+                value={selectedGenre}
+                onChange={(e) => setSelectedGenre(e.target.value)}
+                className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              >
+                <option value="">All Genres</option>
+                {GENRES.map(genre => (
+                  <option key={genre} value={genre}>{genre}</option>
+                ))}
+              </select>
+
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              >
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="most-played">Most Played</option>
+                <option value="least-played">Least Played</option>
+                <option value="title-asc">Title A-Z</option>
+                <option value="title-desc">Title Z-A</option>
+                <option value="artist-asc">Artist A-Z</option>
+                <option value="artist-desc">Artist Z-A</option>
+              </select>
+
+              {/* Clear Filters Button */}
+              {hasActiveFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="flex items-center gap-2 px-3 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                  Clear
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Table Body */}
-        <div className="divide-y divide-gray-700">
-          {filteredSongs.map((song, index) => {
-            const isCurrentSong = currentSong?.id === song.id;
-            const isSelected = selectedSongs.includes(song.id);
+        {/* Table Container */}
+        <div className="bg-gray-800 rounded-lg shadow-2xl overflow-hidden">
+          {/* Action Bar */}
+          <div className="bg-gray-700 px-4 sm:px-6 py-3 border-b border-gray-600">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <p className="text-gray-300 text-sm">
+                {filteredSongs.length} of {songs.length} songs
+                {selectedSongs.length > 0 && (
+                  <span className="ml-2 text-blue-400">
+                    ({selectedSongs.length} selected)
+                  </span>
+                )}
+              </p>
 
-            return (
-              <div
-                key={song.id}
-                className={`grid grid-cols-12 gap-4 items-center p-4 hover:bg-dark-200 transition-colors ${
-                  isSelected ? 'bg-primary-500/10' : ''
-                }`}
-              >
-                {/* Checkbox */}
-                <div className="col-span-1">
+              {selectedSongs.length > 0 && (
+                <button
+                  onClick={handleBulkDelete}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete Selected
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Scrollable Table */}
+          <div className="overflow-x-auto">
+            <table className="min-w-full bg-gray-800">
+              <thead className="bg-gray-700">
+                <tr>
+                  <th className="w-12 px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedSongs.length === filteredSongs.length && filteredSongs.length > 0}
+                      onChange={toggleSelectAll}
+                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                    />
+                  </th>
+                  <th className="w-16 px-4 py-3"></th>
+                  <th className="min-w-[200px] px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                    Title
+                  </th>
+                  <th className="min-w-[150px] px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                    Artist
+                  </th>
+                  <th className="min-w-[150px] px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                    Album
+                  </th>
+                  <th className="min-w-[100px] px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                    Genre
+                  </th>
+                  <th className="min-w-[80px] px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
+                    Plays
+                  </th>
+                  <th className="min-w-[80px] px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
+                    Duration
+                  </th>
+                  <th className="min-w-[100px] px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
+                    Added
+                  </th>
+                  <th className="min-w-[100px] px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-gray-800 divide-y divide-gray-700">
+                {filteredSongs.length === 0 ? (
+                  <tr>
+                    <td colSpan="10" className="px-6 py-12 text-center">
+                      <Music className="w-12 h-12 text-gray-500 mx-auto mb-3" />
+                      <p className="text-gray-400 text-lg font-medium">No songs found</p>
+                      <p className="text-gray-500 text-sm">Try adjusting your search or filters</p>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredSongs.map((song) => (
+                    <tr
+                      key={song.id}
+                      className={`hover:bg-gray-700 transition-colors ${
+                        selectedSongs.includes(song.id) ? 'bg-gray-700' : ''
+                      }`}
+                    >
+                      <td className="px-4 py-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedSongs.includes(song.id)}
+                          onChange={() => toggleSongSelection(song.id)}
+                          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => handlePlayPause(song)}
+                          className={`p-2 rounded-full transition-colors ${
+                            currentSong?.id === song.id && isPlaying
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-gray-600 hover:bg-gray-500 text-gray-300'
+                          }`}
+                        >
+                          {currentSong?.id === song.id && isPlaying ? (
+                            <Pause className="w-4 h-4" />
+                          ) : (
+                            <Play className="w-4 h-4" />
+                          )}
+                        </button>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="text-sm font-medium text-white truncate">
+                          {song.title}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="text-sm text-gray-300 truncate">
+                          {song.artist}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="text-sm text-gray-300 truncate">
+                          {song.album || 'Unknown Album'}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-600 text-gray-300">
+                          {song.genre || 'Unknown'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <div className="text-sm text-gray-300">
+                          {formatPlayCount(song.playCount || 0)}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <div className="text-sm text-gray-300">
+                          {formatTime(song.duration || 0)}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <div className="text-sm text-gray-300">
+                          {song.createdAt ? getTimeAgo(song.createdAt.toDate()) : 'Unknown'}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => openEditModal(song)}
+                            className="p-2 text-gray-400 hover:text-blue-400 hover:bg-gray-700 rounded-lg transition-colors"
+                            title="Edit song"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setShowDeleteModal(song.id)}
+                            className="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-700 rounded-lg transition-colors"
+                            title="Delete song"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* Edit Song Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-gray-800 rounded-lg shadow-2xl max-w-md w-full p-6">
+            <h3 className="text-lg font-medium text-white mb-4">Edit Song</h3>
+            <form onSubmit={handleEditSong}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Title
+                  </label>
                   <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => toggleSongSelection(song.id)}
-                    className="w-4 h-4 text-primary-500 bg-dark-200 border-gray-600 rounded focus:ring-primary-500"
+                    type="text"
+                    value={editFormData.title}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, title: e.target.value }))}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
                   />
                 </div>
-
-                {/* Play Button / Index */}
-                <div className="col-span-1 text-center">
-                  {isCurrentSong ? (
-                    <button
-                      onClick={() => isPlaying ? pauseSong() : playSong(song)}
-                      className="text-primary-500 hover:text-primary-400 transition-colors"
-                    >
-                      {isPlaying ? <Pause size={16} /> : <Play size={16} />}
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => playSong(song, filteredSongs)}
-                      className="text-gray-400 hover:text-white transition-colors"
-                    >
-                      <Play size={16} />
-                    </button>
-                  )}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Artist
+                  </label>
+                  <input
+                    type="text"
+                    value={editFormData.artist}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, artist: e.target.value }))}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  />
                 </div>
-
-                {/* Song Info */}
-                <div className="col-span-4 flex items-center space-x-3">
-                  {song.imageUrl ? (
-                    <img
-                      src={song.imageUrl}
-                      alt={song.title}
-                      className="w-12 h-12 rounded-md object-cover"
-                    />
-                  ) : (
-                    <div className="w-12 h-12 bg-gray-700 rounded-md flex items-center justify-center">
-                      <Music className="w-6 h-6 text-gray-400" />
-                    </div>
-                  )}
-                  <div className="min-w-0">
-                    <p className={`font-medium truncate ${
-                      isCurrentSong ? 'text-primary-500' : 'text-white'
-                    }`}>
-                      {song.title}
-                    </p>
-                    <p className="text-gray-400 text-sm truncate">{song.artist}</p>
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Album
+                  </label>
+                  <input
+                    type="text"
+                    value={editFormData.album}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, album: e.target.value }))}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
                 </div>
-
-                {/* Album */}
-                <div className="col-span-2">
-                  <p className="text-gray-400 truncate">{song.album || 'Unknown Album'}</p>
-                  <p className="text-gray-500 text-xs">{song.genre || 'Unknown'}</p>
-                </div>
-
-                {/* Plays */}
-                <div className="col-span-1">
-                  <p className="text-white">{formatPlayCount(song.playCount || 0)}</p>
-                </div>
-
-                {/* Duration */}
-                <div className="col-span-1">
-                  <p className="text-gray-400">{formatTime(song.duration || 0)}</p>
-                </div>
-
-                {/* Added Date */}
-                <div className="col-span-1">
-                  <p className="text-gray-400 text-sm">
-                    {song.createdAt ? getTimeAgo(song.createdAt.toDate()) : 'Unknown'}
-                  </p>
-                </div>
-
-                {/* Actions */}
-                <div className="col-span-1 flex items-center space-x-2">
-                  <button
-                    onClick={() => {
-                      // Handle edit song
-                    }}
-                    className="text-gray-400 hover:text-white transition-colors"
-                    title="Edit song"
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Genre
+                  </label>
+                  <select
+                    value={editFormData.genre}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, genre: e.target.value }))}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    <Edit size={16} />
-                  </button>
-                  <button
-                    onClick={() => setShowDeleteModal(song.id)}
-                    className="text-gray-400 hover:text-red-500 transition-colors"
-                    title="Delete song"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                    <option value="">Select Genre</option>
+                    {GENRES.map(genre => (
+                      <option key={genre} value={genre}>{genre}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
-            );
-          })}
-        </div>
-
-        {/* Empty State */}
-        {filteredSongs.length === 0 && (
-          <div className="text-center py-20">
-            <Music size={48} className="text-gray-600 mx-auto mb-4" />
-            <p className="text-gray-400 text-lg mb-2">No songs found</p>
-            <p className="text-gray-500">Try adjusting your search or filters</p>
-          </div>
-        )}
-      </div>
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-dark-100 rounded-xl shadow-2xl max-w-md w-full">
-            <div className="p-6">
-              <h3 className="text-xl font-bold text-white mb-4">Delete Song</h3>
-              <p className="text-gray-400 mb-6">
-                Are you sure you want to delete this song? This action cannot be undone.
-              </p>
-              <div className="flex justify-end space-x-4">
+              <div className="flex gap-3 justify-end mt-6">
                 <button
-                  onClick={() => setShowDeleteModal(null)}
-                  className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors"
+                  type="button"
+                  onClick={() => setShowEditModal(null)}
+                  className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={() => handleDeleteSong(showDeleteModal)}
-                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
                 >
-                  Delete
+                  Save Changes
                 </button>
               </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-gray-800 rounded-lg shadow-2xl max-w-md w-full p-6">
+            <h3 className="text-lg font-medium text-white mb-4">Delete Song</h3>
+            <p className="text-gray-300 mb-6">
+              Are you sure you want to delete this song? This action cannot be undone.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowDeleteModal(null)}
+                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteSong(showDeleteModal)}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+              >
+                Delete
+              </button>
             </div>
           </div>
         </div>

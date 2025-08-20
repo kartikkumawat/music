@@ -46,11 +46,17 @@ music-streaming-app/
 │   │       └── SongManager.jsx
 │   ├── contexts/
 │   │   ├── AuthContext.jsx
-│   │   ├── MusicContext.jsx
+│   │   ├── MusicActionsContext.jsx
+│   │   ├── MusicPlayerContext.jsx
+│   │   ├── MusicTimeContext.jsx
 │   │   └── PlaylistContext.jsx
 │   ├── hooks/
 │   │   ├── useAudio.jsx
 │   │   ├── useFirestore.jsx
+│   │   ├── useMusic.js
+│   │   ├── useMusicActions.js
+│   │   ├── useMusicComplete.js
+│   │   ├── useMusicTime.js
 │   │   └── useCloudinary.jsx
 │   ├── services/
 │   │   ├── firebase.js

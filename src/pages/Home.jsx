@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '../services/firebase';
 import { collection, getDocs, orderBy, query, limit } from 'firebase/firestore';
-import { useMusic } from '../hooks/useMusic';
+import { useMusicActions } from '../hooks/useMusicActions';
+import { usePlaylist } from '../contexts/PlaylistContext';
+import PlaylistCreator from '../components/playlist/PlaylistCreator';
 import SearchBar from '../components/music/SearchBar';
 import SongCard from '../components/music/SongCard';
 import { TrendingUp, Clock, Star, ChevronRight, ArrowLeft } from 'lucide-react';
@@ -15,7 +17,8 @@ const Home = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [showingSection, setShowingSection] = useState(null); // null, 'featured', 'recent', 'popular'
 
-  const { playSong } = useMusic();
+  const { playSong } = useMusicActions();
+  const { showCreateModal, setShowCreateModal } = usePlaylist();
 
   useEffect(() => {
     fetchHomeData();
@@ -259,6 +262,13 @@ const Home = () => {
             )}
           </div>
         )}
+
+        {showCreateModal && (
+        <PlaylistCreator
+          isOpen={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+        />
+      )}
       </div>
     </div>
   );

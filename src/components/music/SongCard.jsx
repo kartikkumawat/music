@@ -1,7 +1,8 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMusic } from '../../hooks/useMusic';
 import { usePlaylist } from '../../contexts/PlaylistContext';
+import { useMusicActions } from '../../hooks/useMusicActions';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   Play,
@@ -19,7 +20,8 @@ import {
 
 const SongCard = React.memo(({ song, onClick, showArtist = true, onEdit }) => {
   const navigate = useNavigate();
-  const { currentSong, isPlaying, playSong } = useMusic();
+  const { currentSong, isPlaying} = useMusic();
+  const { playSong } = useMusicActions();
   const { playlists, addSongToPlaylist, setShowCreateModal } = usePlaylist();
   const { isAdmin } = useAuth();
 
@@ -30,8 +32,9 @@ const SongCard = React.memo(({ song, onClick, showArtist = true, onEdit }) => {
   const [addingToPlaylist, setAddingToPlaylist] = useState(null);
   const [feedbackMessage, setFeedbackMessage] = useState('');
 
-  const isCurrentSong = currentSong?.id === song.id;
-  const showPlayButton = isHovered || isCurrentSong;
+  // Memoize computed values to prevent unnecessary re-renders
+  const isCurrentSong = useMemo(() => currentSong?.id === song.id, [currentSong?.id, song.id]);
+  const showPlayButton = useMemo(() => isHovered || isCurrentSong, [isHovered, isCurrentSong]);
 
   const formatDuration = useCallback((duration) => {
     if (!duration) return '--:--';
@@ -164,12 +167,16 @@ const SongCard = React.memo(({ song, onClick, showArtist = true, onEdit }) => {
     return playlist?.songs?.includes(song.id);
   }, [playlists, song.id]);
 
+  // Stable mouse event handlers
+  const handleMouseEnter = useCallback(() => setIsHovered(true), []);
+  const handleMouseLeave = useCallback(() => setIsHovered(false), []);
+
   return (
     <>
       <div
         className="bg-gray-800 rounded-lg p-4 hover:bg-gray-750 transition-all duration-200 cursor-pointer group relative"
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
         {/* Feedback Message */}
         {feedbackMessage && (
@@ -192,9 +199,9 @@ const SongCard = React.memo(({ song, onClick, showArtist = true, onEdit }) => {
             </div>
           )}
 
-          {/* Play Button Overlay - Fixed to prevent blinking */}
+          {/* Play Button Overlay - Using transform for better performance */}
           <div className={`absolute bottom-2 right-2 transition-all duration-200 ${
-            showPlayButton ? 'opacity-100 scale-100' : 'opacity-0 scale-75'
+            showPlayButton ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-75 translate-y-2'
           }`}>
             <button
               onClick={handlePlayClick}
@@ -357,5 +364,6 @@ const SongCard = React.memo(({ song, onClick, showArtist = true, onEdit }) => {
     </>
   );
 });
+
 SongCard.displayName = 'SongCard';
 export default SongCard;

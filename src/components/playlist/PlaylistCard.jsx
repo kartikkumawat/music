@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { usePlaylist } from '../../contexts/PlaylistContext';
 import { useMusic } from '../../hooks/useMusic';
+import { useMusicActions } from '../../hooks/useMusicActions';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   Play,
@@ -18,7 +19,8 @@ import {
 
 const PlaylistCard = ({ playlist, onEdit }) => {
   const { deletePlaylist } = usePlaylist();
-  const { currentSong, isPlaying, playSong, shareSong } = useMusic();
+  const { currentSong, isPlaying } = useMusic();
+  const { playSong, shareSong } = useMusicActions();
   const { user } = useAuth();
 
   const [isHovered, setIsHovered] = useState(false);

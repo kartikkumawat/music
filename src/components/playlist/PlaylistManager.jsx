@@ -1,18 +1,38 @@
 import React, { useState } from 'react';
 import { usePlaylist } from '../../contexts/PlaylistContext';
-import { useMusic } from '../../hooks/useMusic';
+import { useMusicActions } from '../../hooks/useMusicActions';
 import PlaylistCreator from './PlaylistCreator';
 import PlaylistCard from './PlaylistCard';
 import { Plus, Search, Grid3X3, List, Filter } from 'lucide-react';
 
 const PlaylistManager = () => {
   const { playlists, loading } = usePlaylist();
-  const { playSong } = useMusic();
+  const { playSong } = useMusicActions();
   const [showCreator, setShowCreator] = useState(false);
   const [viewMode, setViewMode] = useState('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('newest');
   const [filterBy, setFilterBy] = useState('all');
+
+  const toDateSafe = (ts) => {
+    // Check if it's a Firestore Timestamp with toDate method
+    if (ts?.toDate && typeof ts.toDate === 'function') {
+      return ts.toDate();
+    }
+
+    // Check if it's a string or number
+    if (typeof ts === 'string' || typeof ts === 'number') {
+      return new Date(ts);
+    }
+
+    // Check if it's already a Date object
+    if (ts instanceof Date) {
+      return ts;
+    }
+
+    // Fallback to Unix epoch if invalid
+    return new Date(0);
+  };
 
   const filteredPlaylists = playlists
     .filter(playlist => {
@@ -28,9 +48,9 @@ const PlaylistManager = () => {
     .sort((a, b) => {
       switch (sortBy) {
         case 'newest':
-          return new Date(b.createdAt?.toDate() || 0) - new Date(a.createdAt?.toDate() || 0);
+          return toDateSafe(b.createdAt) - toDateSafe(a.createdAt);
         case 'oldest':
-          return new Date(a.createdAt?.toDate() || 0) - new Date(b.createdAt?.toDate() || 0);
+          return toDateSafe(a.createdAt) - toDateSafe(b.createdAt);
         case 'name-asc':
           return a.name.localeCompare(b.name);
         case 'name-desc':

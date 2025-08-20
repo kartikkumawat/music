@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { songsAPI } from '../services/api';
-import { useMusic } from '../hooks/useMusic';
+import { useMusicActions } from '../hooks/useMusicActions';
 import SearchBar from '../components/music/SearchBar';
 import SongList from '../components/music/SongList';
 import SongCard from '../components/music/SongCard';
@@ -9,7 +9,7 @@ import { GENRES } from '../utils/constants';
 import Loading from '../components/common/Loading';
 
 const Search = () => {
-  const { playSong } = useMusic();
+  const { playSong } = useMusicActions();
   const [allSongs, setAllSongs] = useState([]);
   const [searchResults, setSearchResults] = useState([]);
   const [loading, setLoading] = useState(false);

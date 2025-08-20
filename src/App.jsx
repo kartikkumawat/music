@@ -1,7 +1,10 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { MusicProvider } from './contexts/MusicContext';
+// import { MusicProvider } from './contexts/MusicContext';
+import { MusicPlayerProvider } from './contexts/MusicPlayerContext';
+import { MusicTimeProvider } from './contexts/MusicTimeContext';
+import { MusicActionsProvider } from './contexts/MusicActionsContext';
 import { PlaylistProvider } from './contexts/PlaylistContext';
 import Home from './pages/Home';
 import Search from './pages/Search';
@@ -76,7 +79,9 @@ const AppRoutes = () => {
 function App() {
   return (
     <AuthProvider>
-      <MusicProvider>
+      <MusicPlayerProvider>
+          <MusicTimeProvider>
+            <MusicActionsProvider>
         <Router
           future={{
             v7_startTransition: true,
@@ -85,7 +90,9 @@ function App() {
         >
           <AppRoutes />
         </Router>
-      </MusicProvider>
+      </MusicActionsProvider>
+          </MusicTimeProvider>
+        </MusicPlayerProvider>
     </AuthProvider>
   );
 }

@@ -1,24 +1,20 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useMusic } from '../../hooks/useMusic';
+import { useMusicTime } from '../../hooks/useMusicTime';
+import { useMusicActions } from '../../hooks/useMusicActions';
 import AudioControls from './AudioControls';
 import VolumeControl from './VolumeControl';
 import { Heart, MoreHorizontal, Maximize2, X, Share2, Download, Music } from 'lucide-react';
 import { formatTime } from '../../utils/helpers';
 
 const AudioPlayer = () => {
-  const {
-    currentSong,
-    currentTime,
-    duration,
-    seekTo,
-    isLoading,
-    showPlayer,
-    closeMusicPlayer,
-    shareSong
-  } = useMusic();
+  const navigate = useNavigate();
+  const { currentSong, showPlayer, isLoading } = useMusic();
+  const { currentTime, duration } = useMusicTime();
+  const { seekTo, closeMusicPlayer, shareSong } = useMusicActions();
 
   const [isFavorite, setIsFavorite] = useState(false);
-  const [showLyrics, setShowLyrics] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
 
   if (!currentSong || !showPlayer) return null;
@@ -31,6 +27,11 @@ const AudioPlayer = () => {
     const percentage = x / rect.width;
     const time = percentage * duration;
     seekTo(time);
+  };
+
+  const handleFullScreen = () => {
+    navigate(`/song/${currentSong.id}`);
+    setShowMoreMenu(false);
   };
 
   const handleShare = () => {
@@ -147,7 +148,7 @@ const AudioPlayer = () => {
                   <span>Download</span>
                 </button>
                 <button
-                  onClick={() => setShowLyrics(!showLyrics)}
+                  onClick={handleFullScreen}
                   className="flex items-center space-x-3 px-4 py-2 text-sm text-white hover:bg-gray-700 w-full text-left transition-colors"
                 >
                   <Maximize2 className="w-4 h-4" />

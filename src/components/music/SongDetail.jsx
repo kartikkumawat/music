@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMusic } from '../../hooks/useMusic';
+import { useMusicTime } from '../../hooks/useMusicTime';
+import { useMusicActions } from '../../hooks/useMusicActions';
 import { usePlaylist } from '../../contexts/PlaylistContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { songsAPI } from '../../services/api';
@@ -25,7 +27,9 @@ import Loading from '../common/Loading';
 const SongDetail = () => {
   const { songId } = useParams();
   const navigate = useNavigate();
-  const { currentSong, isPlaying, playSong, currentTime, duration, seekTo } = useMusic();
+   const { currentSong, isPlaying } = useMusic();
+  const { currentTime, duration } = useMusicTime();
+  const { playSong, seekTo } = useMusicActions();
   const { playlists, addSongToPlaylist } = usePlaylist();
   const { isAdmin } = useAuth();
 
