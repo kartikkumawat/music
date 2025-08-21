@@ -55,7 +55,7 @@ const AudioPlayer = () => {
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 z-50">
+    <div className="fixed bottom-0 left-0 right-0 bg-gray-900 z-[9999] border-t border-gray-800 text-white">
       {/* Progress Bar */}
       <div
         className="w-full h-1 bg-gray-700 cursor-pointer group"
@@ -69,7 +69,8 @@ const AudioPlayer = () => {
         </div>
       </div>
 
-      <div className="flex items-center justify-between px-4 py-3">
+      {/* Main Layout */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 py-3 space-y-4 sm:space-y-0">
         {/* Song Info */}
         <div className="flex items-center space-x-3 min-w-0 flex-1">
           {currentSong.imageUrl ? (
@@ -85,41 +86,39 @@ const AudioPlayer = () => {
           )}
 
           <div className="min-w-0 flex-1">
-            <h4 className="text-white font-medium truncate">{currentSong.title}</h4>
+            <h4 className="font-medium truncate">{currentSong.title}</h4>
             <p className="text-gray-400 text-sm truncate">{currentSong.artist}</p>
             {currentSong.album && (
               <p className="text-gray-500 text-xs truncate">{currentSong.album}</p>
             )}
           </div>
 
-          {/* Song Actions */}
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={toggleFavorite}
-              className={`p-2 rounded-full transition-colors ${
-                isFavorite
-                  ? 'text-red-500 hover:text-red-400'
-                  : 'text-gray-400 hover:text-white'
+          <button
+            onClick={toggleFavorite}
+            className={`p-2 rounded-full transition-colors ${isFavorite
+                ? 'text-red-500 hover:text-red-400'
+                : 'text-gray-400 hover:text-white'
               }`}
-            >
-              <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
-            </button>
-          </div>
+          >
+            <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
+          </button>
         </div>
 
         {/* Audio Controls */}
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center justify-center">
           <AudioControls />
         </div>
 
         {/* Right Side Controls */}
-        <div className="flex items-center space-x-3 min-w-0 flex-1 justify-end">
-          <div className="flex items-center space-x-2 text-xs text-gray-400">
+        <div className="flex items-center justify-between sm:justify-end space-x-3 flex-wrap sm:flex-nowrap sm:flex-1">
+          {/* Time Display */}
+          <div className="flex items-center space-x-1 text-xs text-gray-400">
             <span>{formatTime(currentTime)}</span>
             <span>/</span>
             <span>{formatTime(duration)}</span>
           </div>
 
+          {/* Volume */}
           <VolumeControl />
 
           {/* More Options */}
@@ -132,24 +131,24 @@ const AudioPlayer = () => {
             </button>
 
             {showMoreMenu && (
-              <div className="absolute bottom-full right-0 mb-2 bg-gray-800 rounded-lg shadow-xl border border-gray-700 py-2 min-w-[160px]">
+              <div className="absolute bottom-full right-0 mb-2 bg-gray-800 rounded-lg shadow-xl border border-gray-700 py-2 min-w-[160px] z-50">
                 <button
                   onClick={handleShare}
-                  className="flex items-center space-x-3 px-4 py-2 text-sm text-white hover:bg-gray-700 w-full text-left transition-colors"
+                  className="flex items-center space-x-3 px-4 py-2 text-sm hover:bg-gray-700 w-full text-left"
                 >
                   <Share2 className="w-4 h-4" />
                   <span>Share</span>
                 </button>
                 <button
                   onClick={handleDownload}
-                  className="flex items-center space-x-3 px-4 py-2 text-sm text-white hover:bg-gray-700 w-full text-left transition-colors"
+                  className="flex items-center space-x-3 px-4 py-2 text-sm hover:bg-gray-700 w-full text-left"
                 >
                   <Download className="w-4 h-4" />
                   <span>Download</span>
                 </button>
                 <button
                   onClick={handleFullScreen}
-                  className="flex items-center space-x-3 px-4 py-2 text-sm text-white hover:bg-gray-700 w-full text-left transition-colors"
+                  className="flex items-center space-x-3 px-4 py-2 text-sm hover:bg-gray-700 w-full text-left"
                 >
                   <Maximize2 className="w-4 h-4" />
                   <span>Full Screen</span>
@@ -158,7 +157,7 @@ const AudioPlayer = () => {
             )}
           </div>
 
-          {/* Close Button */}
+          {/* Close */}
           <button
             onClick={closeMusicPlayer}
             className="p-2 rounded-full text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
@@ -169,12 +168,13 @@ const AudioPlayer = () => {
         </div>
       </div>
 
-      {/* Loading Indicator */}
+      {/* Loading Line */}
       {isLoading && (
         <div className="absolute top-0 left-0 w-full h-1 bg-blue-500 animate-pulse" />
       )}
     </div>
   );
+
 };
 
 export default AudioPlayer;

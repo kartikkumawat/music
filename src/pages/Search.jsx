@@ -25,6 +25,12 @@ const Search = () => {
     loadRecentSearches();
   }, []);
 
+  const removeRecentSearch = (searchToRemove) => {
+    const updated = recentSearches.filter(search => search !== searchToRemove);
+    setRecentSearches(updated);
+    localStorage.setItem('recentSearches', JSON.stringify(updated));
+  };
+
   const fetchAllSongs = async () => {
     try {
       setLoading(true);
@@ -129,6 +135,7 @@ const Search = () => {
             showSuggestions={true}
             recentSearches={recentSearches}
             onRecentSearchClick={handleRecentSearchClick}
+            onRemoveRecentSearch={removeRecentSearch}
             placeholder="Search for songs, artists, albums, or genres..."
           />
         </div>

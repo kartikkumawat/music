@@ -32,8 +32,8 @@ const AdminPanel = () => {
     <div className="min-h-screen bg-dark-300">
       {/* Admin Navigation */}
       <div className="bg-dark-200 border-b border-gray-700">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-wrap items-center justify-between h-16 gap-4">
             {/* Admin Logo */}
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center">
@@ -45,7 +45,7 @@ const AdminPanel = () => {
             {/* Public Site Link */}
             <a
               href="/"
-              className="flex items-center space-x-2 px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors"
+              className="flex items-center space-x-2 px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors whitespace-nowrap"
             >
               <Home size={18} />
               <span>View Site</span>
@@ -53,14 +53,14 @@ const AdminPanel = () => {
           </div>
 
           {/* Tab Navigation */}
-          <div className="flex space-x-1 pb-4">
+          <div className="flex flex-wrap gap-2 pt-4 pb-4 overflow-x-auto">
             {tabs.map(tab => {
               const Icon = tab.icon;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
                     activeTab === tab.id
                       ? 'bg-primary-500 text-white'
                       : 'text-gray-300 hover:text-white hover:bg-gray-700'
@@ -76,7 +76,7 @@ const AdminPanel = () => {
       </div>
 
       {/* Tab Content */}
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <ActiveComponent />
       </div>
     </div>

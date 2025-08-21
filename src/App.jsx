@@ -27,11 +27,11 @@ const MainLayout = ({ children }) => (
   <PlaylistProvider>
     <div className="min-h-screen bg-dark-300 flex flex-col">
       <Header />
-      <main className="flex-1 pb-24">
+      <main className="flex-1 pb-24 relative">
         {children}
+        <AudioPlayer />
       </main>
       <Footer />
-      <AudioPlayer />
     </div>
   </PlaylistProvider>
 );

@@ -6,7 +6,8 @@ const SearchBar = ({
   placeholder = "Search for songs, artists, albums...",
   showSuggestions = true,
   recentSearches = [],
-  onRecentSearchClick
+  onRecentSearchClick,
+  onRemoveRecentSearch
 }) => {
   const [query, setQuery] = useState('');
   const [isFocused, setIsFocused] = useState(false);
@@ -17,12 +18,10 @@ const SearchBar = ({
 
   // Remove onSearch from dependencies and use ref to avoid infinite loop
   useEffect(() => {
-    // Clear previous timeout
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
 
-    // Debounced search
     timeoutRef.current = setTimeout(() => {
       if (query.trim()) {
         onSearch(query.trim());
@@ -31,13 +30,12 @@ const SearchBar = ({
       }
     }, 300);
 
-    // Cleanup timeout on unmount
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [query]); // Only depend on query, not onSearch
+  }, [query]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -67,12 +65,14 @@ const SearchBar = ({
   ];
 
   return (
-    <div className="relative max-w-2xl mx-auto" ref={dropdownRef}>
+    <div className="relative w-full max-w-full sm:max-w-2xl mx-auto px-4 sm:px-0" ref={dropdownRef}>
       {/* Search Input */}
-      <div className={`relative flex items-center bg-dark-100 rounded-full px-6 py-4 transition-all duration-200 ${
-        isFocused ? 'ring-2 ring-primary-500 shadow-lg' : 'ring-1 ring-gray-600'
-      }`}>
-        <Search size={20} className="text-gray-400 mr-4" />
+      <div
+        className={`relative flex items-center bg-dark-100 rounded-full px-4 sm:px-6 py-3 sm:py-4 transition-all duration-200 ${
+          isFocused ? 'ring-2 ring-primary-500 shadow-lg' : 'ring-1 ring-gray-600'
+        }`}
+      >
+        <Search size={20} className="text-gray-400 mr-3 sm:mr-4" />
         <input
           ref={searchRef}
           type="text"
@@ -84,12 +84,12 @@ const SearchBar = ({
           }}
           onBlur={() => setIsFocused(false)}
           placeholder={placeholder}
-          className="flex-1 bg-transparent text-white placeholder-gray-400 outline-none text-lg"
+          className="flex-1 bg-transparent text-white placeholder-gray-400 outline-none text-base sm:text-lg"
         />
         {query && (
           <button
             onClick={clearSearch}
-            className="ml-3 text-gray-400 hover:text-white transition-colors p-1 rounded-full hover:bg-gray-700"
+            className="ml-2 sm:ml-3 text-gray-400 hover:text-white transition-colors p-1 rounded-full hover:bg-gray-700"
           >
             <X size={18} />
           </button>
@@ -100,21 +100,21 @@ const SearchBar = ({
       {showSuggestions && showDropdown && (
         <div className="absolute top-full mt-2 w-full bg-dark-100 border border-gray-600 rounded-xl shadow-2xl z-50 max-h-96 overflow-hidden">
           {query ? (
-            /* Search Results Preview */
+            // Search Results Preview
             <div className="p-4">
-              <div className="flex items-center space-x-2 text-gray-400 mb-2">
+              <div className="flex items-center space-x-2 text-gray-400 mb-2 text-sm sm:text-base">
                 <Search size={16} />
-                <span className="text-sm">Searching for "{query}"</span>
+                <span>Searching for "{query}"</span>
               </div>
             </div>
           ) : (
-            /* Recent and Trending Searches */
+            // Recent and Trending Searches
             <div className="py-2">
               {recentSearches.length > 0 && (
                 <div className="px-4 py-2">
-                  <div className="flex items-center space-x-2 text-gray-400 mb-3">
+                  <div className="flex items-center space-x-2 text-gray-400 mb-3 text-sm sm:text-base">
                     <Clock size={16} />
-                    <span className="text-sm font-medium">Recent searches</span>
+                    <span className="font-medium">Recent searches</span>
                   </div>
                   <div className="space-y-1">
                     {recentSearches.slice(0, 3).map((search, index) => (
@@ -127,7 +127,7 @@ const SearchBar = ({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            // Remove from recent searches
+                            onRemoveRecentSearch?.(search);
                           }}
                           className="text-gray-400 hover:text-white"
                         >
@@ -140,9 +140,9 @@ const SearchBar = ({
               )}
 
               <div className="px-4 py-2 border-t border-gray-700">
-                <div className="flex items-center space-x-2 text-gray-400 mb-3">
+                <div className="flex items-center space-x-2 text-gray-400 mb-3 text-sm sm:text-base">
                   <TrendingUp size={16} />
-                  <span className="text-sm font-medium">Trending searches</span>
+                  <span className="font-medium">Trending searches</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {trendingSearches.map((trend, index) => (

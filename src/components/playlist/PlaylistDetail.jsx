@@ -8,6 +8,7 @@ import { doc, getDoc, collection, query, where, getDocs, updateDoc } from 'fireb
 import { Play, Pause, MoreHorizontal, Edit, Trash2, Clock, Music } from 'lucide-react';
 import SongList from '../music/SongList';
 import Loading from '../common/Loading';
+import { useAuth } from '../../contexts/AuthContext';
 
 const PlaylistDetail = () => {
   const { playlistId } = useParams();
@@ -15,6 +16,7 @@ const PlaylistDetail = () => {
   const { deletePlaylist, removeSongFromPlaylist } = usePlaylist();
   const { currentSong, isPlaying } = useMusic();
   const { playSong } = useMusicActions();
+  const { isAdmin } = useAuth();
 
   const [playlist, setPlaylist] = useState(null);
   const [songs, setSongs] = useState([]);
@@ -173,11 +175,11 @@ const PlaylistDetail = () => {
   return (
     <div className="min-h-screen bg-dark-300">
       {/* Header */}
-      <div className="bg-gradient-to-b from-primary-600/20 to-dark-300 px-6 pt-6 pb-8">
+      <div className="bg-gradient-to-b from-primary-600/20 to-dark-300 px-4 sm:px-6 pt-6 pb-8">
         <div className="max-w-7xl mx-auto">
-          <div className="flex items-end space-x-6">
+          <div className="flex flex-col sm:flex-row sm:items-end sm:space-x-6 space-y-4 sm:space-y-0">
             {/* Playlist Cover */}
-            <div className="w-48 h-48 bg-gradient-to-br from-primary-500 to-purple-600 rounded-lg shadow-2xl flex items-center justify-center flex-shrink-0">
+            <div className="w-32 h-32 sm:w-48 sm:h-48 bg-gradient-to-br from-primary-500 to-purple-600 rounded-lg shadow-2xl flex items-center justify-center flex-shrink-0">
               {playlist.imageUrl ? (
                 <img
                   src={playlist.imageUrl}
@@ -194,11 +196,11 @@ const PlaylistDetail = () => {
               <p className="text-sm font-medium text-white/80 uppercase tracking-wider mb-2">
                 Playlist
               </p>
-              <h1 className="text-5xl font-bold text-white mb-4 ">
+              <h1 className="text-3xl sm:text-5xl font-bold text-white mb-4">
                 {playlist.name}
               </h1>
               {playlist.description && (
-                <p className="text-lg text-gray-300 mb-4">
+                <p className="text-base sm:text-lg text-gray-300 mb-4">
                   {playlist.description}
                 </p>
               )}
@@ -238,14 +240,16 @@ const PlaylistDetail = () => {
             </button>
 
             <div className="relative">
+              {isAdmin && (
               <button
                 onClick={() => setShowMenu(!showMenu)}
                 className="text-gray-400 hover:text-white transition-colors p-2"
               >
                 <MoreHorizontal size={24} />
               </button>
+              )}
 
-              {showMenu && (
+              {isAdmin && showMenu && (
                 <div className="absolute top-full left-0 mt-2 bg-dark-200 border border-gray-600 rounded-lg shadow-xl z-10 min-w-32">
                   <button
                     onClick={handleEditPlaylist}
@@ -272,7 +276,7 @@ const PlaylistDetail = () => {
       </div>
 
       {/* Songs List */}
-      <div className="px-6 pb-6">
+      <div className="px-4 sm:px-6 pb-6">
         <div className="max-w-7xl mx-auto">
           {songs.length > 0 ? (
             <SongList
@@ -296,7 +300,7 @@ const PlaylistDetail = () => {
       </div>
       {isEditing && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-800 rounded-lg shadow-2xl max-w-md w-full p-6">
+          <div className="bg-gray-800 rounded-lg shadow-2xl w-full max-w-sm sm:max-w-md p-4 sm:p-6">
             <h2 className="text-xl font-bold mb-4 text-white">Edit Playlist</h2>
             <div className="space-y-4">
               <input
@@ -314,7 +318,7 @@ const PlaylistDetail = () => {
                 rows="3"
               />
             </div>
-            <div className="flex gap-3 mt-6">
+            <div className="flex flex-col sm:flex-row gap-3 mt-6">
               <button onClick={handleSaveEdit} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">Save</button>
               <button onClick={handleCancelEdit} className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors">Cancel</button>
             </div>

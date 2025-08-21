@@ -30,91 +30,96 @@ const SongRow = React.memo(({ song, index, isCurrentSong, isCurrentPlaying, onPl
 
   return (
     <div
-      className="grid grid-cols-12 gap-4 px-4 py-3 hover:bg-gray-700/30 transition-colors cursor-pointer group"
+      className={`group cursor-pointer hover:bg-gray-700/30 transition-colors`}
       onClick={handleRowClick}
     >
-      {/* Track Number / Play Button */}
-      <div className="col-span-1 flex items-center">
-        <div className="w-4 text-center">
-          {isCurrentPlaying ? (
-            <div className="w-4 h-4 flex items-center justify-center">
+      {/* Desktop Table Layout */}
+      <div className="hidden sm:grid grid-cols-12 gap-4 px-4 py-3">
+        {/* Track Number / Play Button */}
+        <div className="col-span-1 flex items-center">
+          <div className="w-4 text-center">
+            {isCurrentPlaying ? (
               <div className="flex space-x-0.5">
                 <div className="w-0.5 h-3 bg-blue-500 animate-pulse"></div>
-                <div className="w-0.5 h-2 bg-blue-500 animate-pulse" style={{animationDelay: '0.1s'}}></div>
-                <div className="w-0.5 h-4 bg-blue-500 animate-pulse" style={{animationDelay: '0.2s'}}></div>
+                <div className="w-0.5 h-2 bg-blue-500 animate-pulse delay-100"></div>
+                <div className="w-0.5 h-4 bg-blue-500 animate-pulse delay-200"></div>
               </div>
-            </div>
-          ) : (
-            <>
-              <span className={`text-sm group-hover:hidden transition-opacity ${
-                isCurrentSong ? 'text-blue-500' : 'text-gray-400'
-              }`}>
-                {index + 1}
-              </span>
-              <Play size={14} className="hidden group-hover:block text-white" />
-            </>
-          )}
+            ) : (
+              <>
+                <span className={`text-sm group-hover:hidden ${isCurrentSong ? 'text-blue-500' : 'text-gray-400'}`}>
+                  {index + 1}
+                </span>
+                <Play size={14} className="hidden group-hover:block text-white" />
+              </>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Title and Artist */}
-      <div className="col-span-5 flex items-center min-w-0">
-        <div className="flex items-center space-x-3 min-w-0">
+        {/* Title & Artist */}
+        <div className="col-span-5 flex items-center min-w-0 space-x-3">
           {song.imageUrl ? (
-            <img
-              src={song.imageUrl}
-              alt={song.title}
-              className="w-10 h-10 rounded object-cover flex-shrink-0"
-              loading="lazy"
-            />
+            <img src={song.imageUrl} alt={song.title} className="w-10 h-10 rounded object-cover" />
           ) : (
-            <div className="w-10 h-10 bg-gray-700 rounded flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 bg-gray-700 rounded flex items-center justify-center">
               <Music className="w-5 h-5 text-gray-500" />
             </div>
           )}
-          <div className="min-w-0 flex-1">
-            <p className={`font-medium truncate transition-colors ${
-              isCurrentSong ? 'text-blue-500' : 'text-white'
-            }`}>
-              {song.title}
-            </p>
-            <p className="text-sm text-gray-400 truncate">
-              {song.artist}
-            </p>
+          <div className="min-w-0">
+            <p className={`font-medium truncate ${isCurrentSong ? 'text-blue-500' : 'text-white'}`}>{song.title}</p>
+            <p className="text-sm text-gray-400 truncate">{song.artist}</p>
           </div>
         </div>
-      </div>
 
-      {/* Album */}
-      {showAlbum && (
-        <div className="col-span-3 flex items-center">
-          <p className="text-sm text-gray-400 truncate">
+        {/* Album */}
+        {showAlbum && (
+          <div className="col-span-3 flex items-center text-sm text-gray-400 truncate">
             {song.album || 'Unknown Album'}
-          </p>
-        </div>
-      )}
+          </div>
+        )}
 
-      {/* Date Added */}
-      <div className="col-span-2 flex items-center">
-        <p className="text-sm text-gray-400">
+        {/* Date */}
+        <div className="col-span-2 flex items-center text-sm text-gray-400">
           {formatDate(song.createdAt)}
-        </p>
+        </div>
+
+        {/* Duration & More */}
+        <div className="col-span-1 flex items-center justify-end space-x-2 text-sm text-gray-400">
+          <button
+            onClick={handleMoreClick}
+            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-600 rounded transition"
+          >
+            <MoreHorizontal size={14} />
+          </button>
+          <span className="min-w-[40px] text-right">{formatDuration(song.duration)}</span>
+        </div>
       </div>
 
-      {/* Duration and More */}
-      <div className="col-span-1 flex items-center justify-end space-x-2">
-        <button
-          onClick={handleMoreClick}
-          className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-600 rounded transition-all duration-200"
-        >
-          <MoreHorizontal size={14} className="text-gray-400" />
-        </button>
-        <span className="text-sm text-gray-400 min-w-[40px] text-right">
-          {formatDuration(song.duration)}
-        </span>
+      {/* Mobile Card Layout */}
+      <div className="sm:hidden flex flex-col px-4 py-4 border-b border-gray-700 space-y-2">
+        <div className="flex items-center space-x-3">
+          {song.imageUrl ? (
+            <img src={song.imageUrl} alt={song.title} className="w-12 h-12 rounded object-cover" />
+          ) : (
+            <div className="w-12 h-12 bg-gray-700 rounded flex items-center justify-center">
+              <Music className="w-5 h-5 text-gray-500" />
+            </div>
+          )}
+          <div className="flex-1">
+            <p className={`font-medium ${isCurrentSong ? 'text-blue-500' : 'text-white'}`}>{song.title}</p>
+            <p className="text-sm text-gray-400">{song.artist}</p>
+          </div>
+        </div>
+        {showAlbum && (
+          <p className="text-sm text-gray-400">Album: {song.album || 'Unknown Album'}</p>
+        )}
+        <div className="flex justify-between text-sm text-gray-400">
+          <span>Added: {formatDate(song.createdAt)}</span>
+          <span>{formatDuration(song.duration)}</span>
+        </div>
       </div>
     </div>
   );
+
 });
 
 SongRow.displayName = 'SongRow';
@@ -157,7 +162,7 @@ const SongList = React.memo(({ songs, showHeader = true, showAlbum = false }) =>
     if (!showHeader) return null;
 
     return (
-      <div className="grid grid-cols-12 gap-4 px-4 py-2 text-xs font-medium text-gray-400 uppercase tracking-wider border-b border-gray-700">
+      <div className="hidden sm:grid grid-cols-12 gap-4 px-4 py-2 text-xs font-medium text-gray-400 uppercase tracking-wider border-b border-gray-700">
         <div className="col-span-1">#</div>
         <div className="col-span-5">Title</div>
         {showAlbum && <div className="col-span-3">Album</div>}
@@ -167,6 +172,7 @@ const SongList = React.memo(({ songs, showHeader = true, showAlbum = false }) =>
         </div>
       </div>
     );
+
   }, [showHeader, showAlbum]);
 
   // Memoize empty state
@@ -188,7 +194,7 @@ const SongList = React.memo(({ songs, showHeader = true, showAlbum = false }) =>
       {headerContent}
 
       {/* Song Rows */}
-      <div className="divide-y divide-gray-700/50">
+      <div className="divide-y divide-gray-700/50 sm:overflow-visible overflow-x-auto">
         {songRows}
       </div>
 
